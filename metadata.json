@@ -1,0 +1,5 @@
+{
+  "name": "Feeder Fishing Competition",
+  "description": "A competitive, session-based fishing game where players configure real-time fishing parameters to match venue conditions, catch more fish, and score higher in timed matches.",
+  "requestFramePermissions": []
+}

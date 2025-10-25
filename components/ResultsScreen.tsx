@@ -1,0 +1,43 @@
+import React from 'react';
+import type { MatchResult, MatchParticipant } from '../types';
+import { Button } from './common/Button';
+import { Card } from './common/Card';
+
+interface ResultsScreenProps {
+  result: MatchResult;
+  onContinue: () => void;
+}
+
+export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue }) => {
+  const getWeightDisplay = (participant: MatchParticipant) => {
+    return `${participant.totalWeight.toFixed(2)} kg`;
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md text-center">
+        <Card className="text-left p-4">
+            <h2 className="text-xl font-bold mb-2 sticky top-0 bg-gray-800 py-1 border-b border-gray-700 -mx-4 px-4">Final Standings</h2>
+            <ul>
+                {result.standings.map((p, index) => (
+                    <li key={p.id} className={`flex justify-between items-center px-2 rounded ${!p.isBot ? 'bg-blue-800 border border-blue-600' : ''}`}>
+                        <div className="flex items-center">
+                            <span className="font-bold w-8 text-center text-gray-400">{index + 1}</span>
+                            <span className="ml-2 truncate font-semibold">{p.name}</span>
+                        </div>
+                        <span className="font-bold text-blue-400">{getWeightDisplay(p)}</span>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+        
+        <Card className="bg-gray-900 my-8 p-2">
+            <h2 className="font-semibold text-lg">Rewards</h2>
+            <p className="text-yellow-400 text-lg font-semibold">+{result.coinsEarned} Coins</p>
+        </Card>
+
+        <Button onClick={onContinue}>Back to Main Menu</Button>
+      </div>
+    </div>
+  );
+};
