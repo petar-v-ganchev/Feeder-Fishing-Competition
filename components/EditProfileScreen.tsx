@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import type { User } from '../types';
 import { Button } from './common/Button';
@@ -14,8 +13,8 @@ interface EditProfileScreenProps {
   onDeleteAccount: () => void;
 }
 
-const InputField: React.FC<{label: string, id: string, type: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, placeholder?: string, maxLength?: number}> = 
-({ label, id, type, value, onChange, placeholder, maxLength }) => (
+const InputField: React.FC<{label: string, id: string, type: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, placeholder?: string, maxLength?: number, disabled?: boolean}> = 
+({ label, id, type, value, onChange, placeholder, maxLength, disabled }) => (
     <div>
         <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor={id}>{label}</label>
         <input
@@ -23,9 +22,10 @@ const InputField: React.FC<{label: string, id: string, type: string, value: stri
             type={type}
             value={value}
             onChange={onChange}
-            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder={placeholder}
             maxLength={maxLength}
+            disabled={disabled}
         />
     </div>
 );
@@ -50,10 +50,14 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar);
     const [country, setCountry] = useState(user.country);
+    // Password fields are for UI demonstration; Firebase requires re-authentication for password changes,
+    // which is beyond the scope of this implementation.
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleAvatarClick = () => {
         fileInputRef.current?.click();
@@ -61,24 +65,31 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
+        if (file && file.size < 1048576) { // 1MB limit
             const reader = new FileReader();
             reader.onloadend = () => {
                 setAvatar(reader.result as string);
             };
             reader.readAsDataURL(file);
+        } else if (file) {
+            alert('Image size should not exceed 1MB.');
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password !== confirmPassword) {
-            alert("Passwords do not match.");
-            return;
-        }
-        // Password change is mocked and not saved.
-        // In a real app, you'd handle password update logic here.
-        onSave({ displayName, email, avatar, country });
+        setIsLoading(true);
+
+        // The uniqueness check is now handled atomically by the onSave function's backend logic.
+        // Note: Email & Password changes require separate Firebase flows (updateEmail, updatePassword)
+        // often involving re-authentication, so we are only saving non-sensitive data here.
+        onSave({ displayName, email: user.email, avatar, country });
+        
+        // The parent component will set loading to false after the async operation.
+        // To provide immediate feedback, we can optimistically set it here, but it's better
+        // managed by the parent who knows when the async call is truly done.
+        // For now, let's assume the parent will handle navigation and state changes.
+        // We'll leave isLoading=true to prevent double-clicks.
     };
 
     const handleDeleteConfirm = () => {
@@ -130,12 +141,13 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                         placeholder="YourFisherName"
                     />
                     <InputField 
-                        label="Email"
+                        label="Email (cannot be changed here)"
                         id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
+                        disabled={true}
                     />
                     <SelectField
                         label="Country"
@@ -146,24 +158,26 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                         {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </SelectField>
                     <InputField 
-                        label="New Password (optional)"
+                        label="New Password (not implemented)"
                         id="password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
+                        disabled={true}
                     />
                     <InputField 
-                        label="Confirm New Password"
+                        label="Confirm New Password (not implemented)"
                         id="confirmPassword"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
+                        disabled={true}
                     />
 
                     <div className="pt-4">
-                        <Button type="submit">Save Changes</Button>
+                        <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Changes'}</Button>
                     </div>
                 </form>
             </Card>

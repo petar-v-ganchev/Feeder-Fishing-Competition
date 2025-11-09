@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant, VenueCondition, GameItem } from '../types';
 import {
@@ -381,10 +379,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
-    const availableRods = user.inventory.filter(i => i.type === 'Rod').map(i => i.name);
-    const availableBaits = user.inventory.filter(i => i.type === 'Bait').map(i => i.name);
-    const availableGroundbaits = user.inventory.filter(i => i.type === 'Groundbait').map(i => i.name);
-    
     const player = participants.find(p => !p.isBot);
     const bots = participants.filter(p => p.isBot);
 
@@ -438,20 +432,26 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
     }, [playerPositionHistory, allWeightsZero]);
 
+    const parameters = useMemo(() => {
+        const availableRods = user.inventory.filter(i => i.type === 'Rod').map(i => i.name);
+        const availableBaits = user.inventory.filter(i => i.type === 'Bait').map(i => i.name);
+        const availableGroundbaits = user.inventory.filter(i => i.type === 'Groundbait').map(i => i.name);
+        
+        return [
+            { key: 'rod', label: 'Feeder Rod', options: availableRods.length > 0 ? availableRods : [playerLoadout.rod] },
+            { key: 'bait', label: 'Bait', options: availableBaits.length > 0 ? availableBaits : [playerLoadout.bait] },
+            { key: 'groundbait', label: 'Groundbait', options: availableGroundbaits.length > 0 ? availableGroundbaits : [playerLoadout.groundbait] },
+            { key: 'hookSize', label: 'Hook Size', options: MOCK_HOOK_SIZES },
+            { key: 'feederType', label: 'Feeder Type', options: MOCK_FEEDER_TYPES },
+            { key: 'feederTip', label: 'Feeder Tip', options: MOCK_FEEDER_TIPS },
+            { key: 'castingDistance', label: 'Casting Distance', options: MOCK_CASTING_DISTANCES },
+            { key: 'castingInterval', label: 'Casting Interval', options: MOCK_CASTING_INTERVALS },
+        ];
+    }, [user.inventory, playerLoadout]);
+
     if (!player) {
         return <div className="min-h-screen flex items-center justify-center"><p>Loading Match...</p></div>;
     }
-
-    const parameters: { key: keyof Loadout; label: string; options: string[] }[] = [
-        { key: 'rod', label: 'Feeder Rod', options: availableRods },
-        { key: 'bait', label: 'Bait', options: availableBaits },
-        { key: 'groundbait', label: 'Groundbait', options: availableGroundbaits },
-        { key: 'hookSize', label: 'Hook Size', options: MOCK_HOOK_SIZES },
-        { key: 'feederType', label: 'Feeder Type', options: MOCK_FEEDER_TYPES },
-        { key: 'feederTip', label: 'Feeder Tip', options: MOCK_FEEDER_TIPS },
-        { key: 'castingDistance', label: 'Casting Distance', options: MOCK_CASTING_DISTANCES },
-        { key: 'castingInterval', label: 'Casting Interval', options: MOCK_CASTING_INTERVALS },
-    ];
 
     const sortedParticipants = [...participants].sort((a, b) => b.totalWeight - a.totalWeight);
     const leaderId = sortedParticipants[0]?.totalWeight > 0 ? sortedParticipants[0]?.id : null;
@@ -478,14 +478,14 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                             <label className="text-xs text-gray-400 block truncate">{param.label}</label>
                             {isPlayer ? (
                                 <select
-                                    value={player.loadout[param.key]}
-                                    onChange={(e) => handleLoadoutChange(param.key, e.target.value)}
+                                    value={player.loadout[param.key as keyof Loadout]}
+                                    onChange={(e) => handleLoadoutChange(param.key as keyof Loadout, e.target.value)}
                                     className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-base focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
                                     {param.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                 </select>
                             ) : (
-                                <p className="w-full p-1 bg-gray-900/50 border border-gray-600 rounded truncate text-base">{p.loadout[param.key]}</p>
+                                <p className="w-full p-1 bg-gray-900/50 border border-gray-600 rounded truncate text-base">{p.loadout[param.key as keyof Loadout]}</p>
                             )}
                         </div>
                     ))}
@@ -537,7 +537,14 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                         {bots.map((p) => (
                             <div 
                                 key={p.id} 
-                                ref={(el) => botColumnRefs.current.set(p.id, el)}
+                                // FIX: The ref callback must not return a value. Wrapped in curly braces to ensure void return. Also added cleanup to delete the ref from the map on unmount.
+                                ref={(el) => {
+                                    if (el) {
+                                        botColumnRefs.current.set(p.id, el);
+                                    } else {
+                                        botColumnRefs.current.delete(p.id);
+                                    }
+                                }}
                                 className="w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border border-gray-700 snap-start">
                                 {renderColumnContent(p)}
                             </div>

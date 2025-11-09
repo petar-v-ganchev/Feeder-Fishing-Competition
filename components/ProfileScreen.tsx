@@ -1,9 +1,9 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Screen, type User } from '../types';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
+import { getPlayerRanks } from '../services/leaderboardService';
 
 interface ProfileScreenProps {
   user: User;
@@ -11,14 +11,31 @@ interface ProfileScreenProps {
   onLogout: () => void;
 }
 
-const StatItem: React.FC<{label: string, value: string | number}> = ({label, value}) => (
+const StatItem: React.FC<{label: string, value: string | number, isLoading?: boolean}> = ({label, value, isLoading}) => (
     <div className="flex justify-between items-center py-3 border-b border-gray-700 last:border-b-0">
         <span className="text-gray-400">{label}</span>
-        <span className="font-bold text-lg">{value}</span>
+        {isLoading ? (
+            <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
+        ) : (
+            <span className="font-bold text-lg">{value}</span>
+        )}
     </div>
 );
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, onLogout }) => {
+  const [ranks, setRanks] = useState<{global: number, country: number} | null>(null);
+  const [isLoadingRanks, setIsLoadingRanks] = useState(true);
+
+  useEffect(() => {
+      const fetchRanks = async () => {
+          setIsLoadingRanks(true);
+          const playerRanks = await getPlayerRanks(user.id, user.country);
+          setRanks(playerRanks);
+          setIsLoadingRanks(false);
+      };
+      fetchRanks();
+  }, [user.id, user.country]);
+
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <Header title="Profile & Stats" onBack={() => onNavigate(Screen.MainMenu)} />
@@ -45,8 +62,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
         <StatItem label="Matches Played" value={user.stats.matchesPlayed} />
         <StatItem label="Matches Won" value={user.stats.wins} />
         <StatItem label="Win Rate" value={`${user.stats.matchesPlayed > 0 ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) : 0}%`} />
-        <StatItem label="Global Ranking Position" value={`#${user.stats.globalRank}`} />
-        <StatItem label="Country Ranking Position" value={`#${user.stats.countryRank}`} />
+        <StatItem label="All-Time Global Rank" value={ranks ? `#${ranks.global}` : '-'} isLoading={isLoadingRanks} />
+        <StatItem label="All-Time Country Rank" value={ranks ? `#${ranks.country}` : '-'} isLoading={isLoadingRanks} />
       </Card>
 
       <div className="mt-8 space-y-4">

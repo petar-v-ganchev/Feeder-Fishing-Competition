@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Screen, type User, type DailyChallenge } from '../types';
 import { Button } from './common/Button';
@@ -28,7 +27,7 @@ const ChallengeLoadingSkeleton: React.FC = () => (
 
 export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate, dailyChallenge, onClaimReward, isChallengeLoading }) => {
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div className="p-4 max-w-2xl mx-auto flex flex-col justify-center min-h-screen">
       <header className="flex justify-between items-center mb-6 pt-4">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {user.displayName}!</h1>
@@ -61,8 +60,6 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
         <Button onClick={() => onNavigate(Screen.Matchmaking)} disabled>Quick Match (vs Humans)</Button>
         <div className="grid grid-cols-2 gap-4">
           <Button onClick={() => onNavigate(Screen.Profile)} variant="secondary">Profile</Button>
-          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary">Inventory</Button>
-          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary">Shop</Button>
           <Button onClick={() => onNavigate(Screen.Leaderboard)} variant="secondary">Leaderboard</Button>
         </div>
       </div>

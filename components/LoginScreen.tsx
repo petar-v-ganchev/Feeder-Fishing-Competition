@@ -1,45 +1,68 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
-import type { User } from '../types';
-import { MOCK_COUNTRIES, MOCK_INVENTORY_ITEMS } from '../constants';
+import { registerUser, loginUser } from '../services/userService';
+import { MOCK_COUNTRIES } from '../constants';
 
-interface LoginScreenProps {
-  onLogin: (user: User) => void;
-}
-
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [country, setCountry] = useState(MOCK_COUNTRIES[0]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isRegistering && !displayName) {
-      alert('Please enter a display name.');
-      return;
+  useEffect(() => {
+    // Check for registration errors passed from the main App component
+    const registrationError = sessionStorage.getItem('registrationError');
+    if (registrationError) {
+      setError(registrationError);
+      setIsRegistering(true); // Switch to register tab to show the error contextually
+      sessionStorage.removeItem('registrationError');
     }
-    const finalDisplayName = isRegistering ? displayName : 'AnglerPro';
-    // Mock login/registration
-    const mockUser: User = {
-      id: 'user123',
-      displayName: finalDisplayName,
-      email,
-      avatar: finalDisplayName.charAt(0).toUpperCase(),
-      country: isRegistering ? country : 'United Kingdom',
-      euros: 1000,
-      inventory: MOCK_INVENTORY_ITEMS,
-      stats: {
-        matchesPlayed: 15,
-        wins: 8,
-        globalRank: 123,
-        countryRank: 45,
-      },
-    };
-    onLogin(mockUser);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (isRegistering) {
+        if (!email || !password || !displayName || !country) {
+          throw new Error('Please fill in all fields.');
+        }
+        if (displayName.length < 3 || displayName.length > 15) {
+            throw new Error("Display name must be between 3 and 15 characters.");
+        }
+        
+        // The new registerUser service function handles the entire flow:
+        // 1. Creates Auth User
+        // 2. Creates Firestore Profile (with retries)
+        // 3. Cleans up Auth User if profile creation fails
+        await registerUser(email, password, displayName, country);
+
+        // On success, we wait. The onAuthStateChanged listener in App.tsx will detect
+        // the new user, fetch their now-existing profile, and navigate to the main menu.
+      } else {
+        if (!email || !password) {
+          throw new Error('Please enter your email and password.');
+        }
+        await loginUser({ email, password });
+        // onAuthStateChanged in App.tsx will handle the rest
+      }
+    } catch (err: any) {
+        if (err.code === 'auth/email-already-in-use') {
+          setError('An account with this email already exists. Please login instead.');
+        } else {
+          const friendlyMessage = err.message
+              .replace('Firebase: ', '')
+              .replace(/ \(auth\/[a-z-]+\)\.?/, '');
+          setError(friendlyMessage);
+        }
+        setIsLoading(false); // Only set loading to false on error. On success, we wait for screen change.
+    }
   };
 
   return (
@@ -50,13 +73,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         
         <div className="flex border-b border-gray-700 mb-6">
           <button
-            onClick={() => setIsRegistering(false)}
+            onClick={() => { setIsRegistering(false); setError(null); }}
             className={`flex-1 py-2 text-center font-semibold transition-colors ${!isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
           >
             Login
           </button>
           <button
-            onClick={() => setIsRegistering(true)}
+            onClick={() => { setIsRegistering(true); setError(null); }}
             className={`flex-1 py-2 text-center font-semibold transition-colors ${isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
           >
             Register
@@ -64,57 +87,49 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isRegistering && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="displayName">Display Name</label>
-                <input
-                  id="displayName"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="YourFisherName"
-                />
-              </div>
-               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="country">Country</label>
-                <select
-                  id="country"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="email">Email</label>
-            <input
+          <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
+              placeholder="Email"
+              required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="password">Password</label>
-            <input
+          <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              placeholder="Password (min. 6 characters)"
+              required
             />
-          </div>
+
+          {isRegistering && (
+            <>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Display Name (3-15 characters)"
+                required
+                minLength={3}
+                maxLength={15}
+              />
+              <select id="country" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </>
+          )}
+
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
           <div className="pt-2">
-            <Button type="submit">
-              {isRegistering ? 'Register & Play' : 'Login'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Login')}
             </Button>
           </div>
         </form>

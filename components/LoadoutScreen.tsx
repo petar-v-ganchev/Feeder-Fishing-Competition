@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { Screen, Loadout, User, GameItem } from '../types';
+// FIX: 'Screen' is an enum used as a value, so it must be imported as a value, not a type.
+import { Screen, type Loadout, type User, type GameItem } from '../types';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
@@ -16,19 +17,20 @@ interface LoadoutScreenProps {
   onStartMatch: (loadout: Loadout) => void;
   onBack: () => void;
   user: User;
+  onNavigate: (screen: Screen) => void;
 }
 
 const SelectInput: React.FC<{label: string, value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void, options: string[]}> = ({label, value, onChange, options}) => (
     <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">{label}</label>
-        <select value={value} onChange={onChange} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <label className="block text-sm font-medium text-gray-300 mb-1 truncate" title={label}>{label}</label>
+        <select value={value} onChange={onChange} className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
         </select>
     </div>
 );
 
 
-export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBack, user }) => {
+export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBack, user, onNavigate }) => {
     const [loadout, setLoadout] = useState<Loadout>(() => {
     const getFirstOwned = (type: GameItem['type']) => user.inventory.find(i => i.type === type)?.name;
     
@@ -56,7 +58,7 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
     <div className="p-4 max-w-2xl mx-auto">
       <Header title="Match Prep" onBack={onBack} />
       
-      <Card className="mb-6">
+      <Card className="mb-4">
         <div className="text-center border-b border-gray-700 pb-2 mb-3">
             <h2 className="text-xl font-bold">Crystal Lake</h2>
         </div>
@@ -74,7 +76,7 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
       </Card>
       
       <Card>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-5">
             <SelectInput 
                 label="Feeder Rod"
                 value={loadout.rod}
@@ -112,13 +114,13 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
                 options={MOCK_FEEDER_TIPS}
             />
             <SelectInput 
-                label="Casting Distance"
+                label="Distance"
                 value={loadout.castingDistance}
                 onChange={(e) => handleLoadoutChange('castingDistance', e.target.value)}
                 options={MOCK_CASTING_DISTANCES}
             />
             <SelectInput 
-                label="Casting Interval"
+                label="Interval"
                 value={loadout.castingInterval}
                 onChange={(e) => handleLoadoutChange('castingInterval', e.target.value)}
                 options={MOCK_CASTING_INTERVALS}
@@ -126,7 +128,11 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
         </div>
       </Card>
       
-      <div className="mt-8">
+      <div className="mt-6 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary">Inventory</Button>
+          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary">Shop</Button>
+        </div>
         <Button onClick={() => onStartMatch(loadout)}>Start Match</Button>
       </div>
     </div>

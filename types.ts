@@ -15,7 +15,7 @@ export enum Screen {
 }
 
 export interface User {
-  id: string;
+  id: string; // Corresponds to Firebase Auth UID
   displayName: string;
   email: string;
   avatar: string;
@@ -25,8 +25,6 @@ export interface User {
   stats: {
     matchesPlayed: number;
     wins: number;
-    globalRank: number;
-    countryRank: number;
   };
 }
 
@@ -54,12 +52,6 @@ export interface MatchResult {
   opponentWeight: number;
   eurosEarned: number;
   standings: MatchParticipant[];
-  rankChanges?: {
-    oldGlobalRank: number;
-    newGlobalRank: number;
-    oldCountryRank: number;
-    newCountryRank: number;
-  };
 }
 
 export interface DailyChallenge {
@@ -87,4 +79,14 @@ export interface NewsItem {
   id: number;
   message: string;
   isHint?: boolean;
+}
+
+export interface MatchHistory {
+  id?: string; // Firestore doc ID
+  userId: string;
+  displayName: string;
+  country: string;
+  isWin: boolean;
+  rank: number;
+  timestamp: any; // Firebase ServerTimestamp
 }
