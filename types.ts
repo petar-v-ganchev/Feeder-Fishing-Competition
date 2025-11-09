@@ -20,7 +20,7 @@ export interface User {
   email: string;
   avatar: string;
   country: string;
-  coins: number;
+  euros: number;
   inventory: GameItem[];
   stats: {
     matchesPlayed: number;
@@ -52,8 +52,14 @@ export interface Loadout {
 export interface MatchResult {
   playerWeight: number;
   opponentWeight: number;
-  coinsEarned: number;
+  eurosEarned: number;
   standings: MatchParticipant[];
+  rankChanges?: {
+    oldGlobalRank: number;
+    newGlobalRank: number;
+    oldCountryRank: number;
+    newCountryRank: number;
+  };
 }
 
 export interface DailyChallenge {

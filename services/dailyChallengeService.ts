@@ -36,7 +36,7 @@ const challengeSchema = {
     },
     reward: {
       type: Type.INTEGER,
-      description: 'A fair coin reward for the challenge based on its difficulty, between 100 and 500.',
+      description: 'A fair Euro reward for the challenge based on its difficulty, between 100 and 500.',
     },
      target: {
       type: Type.INTEGER,
@@ -56,7 +56,7 @@ export async function getDailyChallenge(): Promise<DailyChallenge> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: "Generate a single, unique, and creative daily challenge for a feeder fishing game. The challenge must be about either entering a number of matches, winning a number of matches, or placing in the top 5 of a match. It should be a simple cumulative task, not 'in a row'. Provide the challenge type ('enter', 'win', 'top5'), a descriptive sentence, a fair coin reward, and a target count.",
+      contents: "Generate a single, unique, and creative daily challenge for a feeder fishing game. The challenge must be about either entering a number of matches, winning a number of matches, or placing in the top 5 of a match. It should be a simple cumulative task, not 'in a row'. Provide the challenge type ('enter', 'win', 'top5'), a descriptive sentence, a fair Euro reward, and a target count.",
       config: {
         responseMimeType: "application/json",
         responseSchema: challengeSchema,

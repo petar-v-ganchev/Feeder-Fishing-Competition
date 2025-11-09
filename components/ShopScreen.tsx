@@ -32,7 +32,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase
       
       <Card className="mb-6 text-center">
         <p className="text-sm text-gray-400">Your Balance</p>
-        <p className="text-2xl font-bold text-yellow-400">{user.coins.toLocaleString()} Coins</p>
+        <p className="text-2xl font-bold text-yellow-400">{user.euros.toLocaleString()} Euro</p>
       </Card>
 
       <div className="space-y-6">
@@ -46,7 +46,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase
               <div className="space-y-4">
                 {itemsInCategory.map(item => {
                   const isOwned = user.inventory.some(invItem => invItem.id === item.id);
-                  const canAfford = user.coins >= item.price;
+                  const canAfford = user.euros >= item.price;
 
                   return (
                     <Card key={item.id}>
@@ -56,7 +56,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase
                           <p className="text-gray-300 text-sm pr-4">{item.description}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-base font-bold text-yellow-400">{item.price} Coins</p>
+                          <p className="text-base font-bold text-yellow-400">{item.price} Euro</p>
                           <Button
                             onClick={() => onPurchase(item)}
                             disabled={isOwned || !canAfford}

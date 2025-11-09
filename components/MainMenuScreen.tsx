@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Screen, type User, type DailyChallenge } from '../types';
 import { Button } from './common/Button';
@@ -42,7 +43,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
           <p className="text-gray-300 mb-3">{dailyChallenge.description}</p>
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-400">Reward: <span className="font-bold text-yellow-400">{dailyChallenge.reward} Coins</span></p>
+              <p className="text-sm text-gray-400">Reward: <span className="font-bold text-yellow-400">{dailyChallenge.reward} Euro</span></p>
               <p className="text-sm text-gray-400">Progress: {dailyChallenge.progress}/{dailyChallenge.targetCount}</p>
             </div>
             {dailyChallenge.isCompleted && !dailyChallenge.isClaimed && (

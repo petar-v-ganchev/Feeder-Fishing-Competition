@@ -30,7 +30,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       email,
       avatar: finalDisplayName.charAt(0).toUpperCase(),
       country: isRegistering ? country : 'United Kingdom',
-      coins: 1000,
+      euros: 1000,
       inventory: MOCK_INVENTORY_ITEMS,
       stats: {
         matchesPlayed: 15,

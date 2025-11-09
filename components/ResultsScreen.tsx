@@ -8,6 +8,24 @@ interface ResultsScreenProps {
   onContinue: () => void;
 }
 
+const RankChangeItem: React.FC<{label: string, oldRank: number, newRank: number}> = ({ label, oldRank, newRank }) => {
+    const change = oldRank - newRank; // Positive change is good (rank number decreases)
+    const changeText = change > 0 ? `▲${change}` : (change < 0 ? `▼${Math.abs(change)}` : '–');
+    const changeColor = change > 0 ? 'text-green-400' : (change < 0 ? 'text-red-400' : 'text-gray-400');
+
+    return (
+        <div className="flex justify-between items-center px-2">
+            <span className="text-gray-300">{label}</span>
+            <div className="flex items-center space-x-4">
+                <span className="font-bold">#{newRank}</span>
+                <span className={`font-semibold w-12 text-right ${changeColor}`}>
+                    ({changeText})
+                </span>
+            </div>
+        </div>
+    );
+};
+
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue }) => {
   const getWeightDisplay = (participant: MatchParticipant) => {
     return `${participant.totalWeight.toFixed(2)} kg`;
@@ -30,13 +48,31 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
                 ))}
             </ul>
         </Card>
+
+        {result.rankChanges && (
+            <Card className="mt-6 p-4 text-left">
+                <h2 className="text-xl font-bold mb-2 border-b border-gray-700 py-1 -mx-4 px-4">Rank Progression</h2>
+                <div>
+                    <RankChangeItem 
+                        label="Global Rank" 
+                        oldRank={result.rankChanges.oldGlobalRank}
+                        newRank={result.rankChanges.newGlobalRank}
+                    />
+                    <RankChangeItem 
+                        label="Country Rank" 
+                        oldRank={result.rankChanges.oldCountryRank}
+                        newRank={result.rankChanges.newCountryRank}
+                    />
+                </div>
+            </Card>
+        )}
         
-        <Card className="bg-gray-900 my-8 p-2">
+        <Card className="bg-gray-900 mt-6 mb-8 p-2">
             <h2 className="font-semibold text-lg">Rewards</h2>
-            <p className="text-yellow-400 text-lg font-semibold">+{result.coinsEarned} Coins</p>
+            <p className="text-yellow-400 text-lg font-semibold">+{result.eurosEarned} Euro</p>
         </Card>
 
-        <Button onClick={onContinue}>Back to Main Menu</Button>
+        <Button onClick={onContinue}>Join Another Competition</Button>
       </div>
     </div>
   );

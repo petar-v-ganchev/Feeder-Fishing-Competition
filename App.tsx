@@ -73,7 +73,9 @@ const App: React.FC = () => {
 
   const handleMatchEnd = (result: MatchResult) => {
     if (user) {
-        const isWin = result.playerWeight > result.opponentWeight;
+        const playerRank = result.standings.findIndex(p => !p.isBot) + 1;
+        const isWin = playerRank === 1;
+        const isTop5 = playerRank <= 5;
 
         // Update daily challenge progress
         if (dailyChallenge && !dailyChallenge.isCompleted) {
@@ -84,7 +86,7 @@ const App: React.FC = () => {
                 newProgress += 1;
             } else if (challengeType === 'win' && isWin) {
                 newProgress += 1;
-            } else if (challengeType === 'top5' && isWin) { // For 1v1, a win is a top rank
+            } else if (challengeType === 'top5' && isTop5) {
                 newProgress += 1;
             }
             
@@ -100,6 +102,7 @@ const App: React.FC = () => {
             }
         }
         
+        const oldStats = { ...user.stats };
         const newStats = { ...user.stats };
         newStats.matchesPlayed += 1;
         if (isWin) {
@@ -107,16 +110,29 @@ const App: React.FC = () => {
             // Simulate rank improvement on win
             newStats.globalRank = Math.max(1, newStats.globalRank - Math.floor(Math.random() * 3 + 1)); // Improve by 1-3
             newStats.countryRank = Math.max(1, newStats.countryRank - Math.floor(Math.random() * 2 + 1)); // Improve by 1-2
+        } else if (playerRank > 5) { // If player did poorly (outside top 5), rank might drop
+             newStats.globalRank = newStats.globalRank + Math.floor(Math.random() * 3); // drop by 0-2
+             newStats.countryRank = newStats.countryRank + Math.floor(Math.random() * 2); // drop by 0-1
         }
+        // If not a win but in top 5, rank stays same (for simplicity)
+
+        const rankChanges = {
+            oldGlobalRank: oldStats.globalRank,
+            newGlobalRank: newStats.globalRank,
+            oldCountryRank: oldStats.countryRank,
+            newCountryRank: newStats.countryRank,
+        };
 
         setUser({
             ...user,
-            coins: user.coins + result.coinsEarned,
+            euros: user.euros + result.eurosEarned,
             stats: newStats,
         });
+
+        const finalResult = { ...result, rankChanges };
+        setMatchResult(finalResult);
+        setCurrentScreen(Screen.Results);
     }
-    setMatchResult(result);
-    setCurrentScreen(Screen.Results);
   };
 
   const handleResultsContinue = () => {
@@ -127,7 +143,7 @@ const App: React.FC = () => {
 
   const handleClaimChallengeReward = () => {
     if (user && dailyChallenge && dailyChallenge.isCompleted && !dailyChallenge.isClaimed) {
-        setUser(prevUser => prevUser ? ({ ...prevUser, coins: prevUser.coins + dailyChallenge.reward}) : null);
+        setUser(prevUser => prevUser ? ({ ...prevUser, euros: prevUser.euros + dailyChallenge.reward}) : null);
         
         const updatedChallenge = {...dailyChallenge, isClaimed: true};
         setDailyChallenge(updatedChallenge);
@@ -146,14 +162,14 @@ const App: React.FC = () => {
       return;
     }
 
-    if (user.coins < itemToBuy.price) {
-      alert("You don't have enough coins to purchase this item.");
+    if (user.euros < itemToBuy.price) {
+      alert("You don't have enough euros to purchase this item.");
       return;
     }
 
     const updatedUser: User = {
       ...user,
-      coins: user.coins - itemToBuy.price,
+      euros: user.euros - itemToBuy.price,
       inventory: [...user.inventory, itemToBuy],
     };
 

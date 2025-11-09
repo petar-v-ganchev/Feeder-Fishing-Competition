@@ -93,15 +93,14 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack }) 
 
         const wins = filteredHistory.filter(match => match.won).length;
         const matchesPlayed = filteredHistory.length;
-        const winPercentage = matchesPlayed > 0 ? wins / matchesPlayed : 0;
-        const points = wins * winPercentage;
+        const winRatio = matchesPlayed > 0 ? wins / matchesPlayed : 0;
 
-        return { name: player.name, points, wins, matchesPlayed };
+        return { name: player.name, winRatio, wins, matchesPlayed };
       });
       
     return playersWithStats
-      .filter(p => p.matchesPlayed > 0) // Only show players with matches in the period
-      .sort((a, b) => b.points - a.points) // Sort in descending order
+      .filter(p => p.wins >= 5) // List anglers with at least 5 wins in the period
+      .sort((a, b) => b.winRatio - a.winRatio) // Order by win ratio (higher is better)
       .slice(0, 10)
       .map((player, index) => ({ ...player, rank: index + 1 }));
       
@@ -144,7 +143,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack }) 
                             <span className="font-bold text-lg w-8 text-center text-gray-400">{player.rank}</span>
                             <span className="ml-4 font-semibold">{player.name}</span>
                        </div>
-                       <span className="font-bold text-blue-400">{player.points.toFixed(2)} pts</span>
+                       <span className="font-bold text-blue-400">{(player.winRatio * 100).toFixed(1)}% WR</span>
                     </li>
                 ))}
             </ul>

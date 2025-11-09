@@ -36,18 +36,11 @@ const SIMULATION_TICK_RATE = 5000; // 5 seconds
 const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 const LiveFeedTicker: React.FC<{ message: string | null }> = ({ message }) => {
-    if (!message) {
-        return (
-            <div className="p-2 rounded-lg">
-                <p className="text-sm text-yellow-300/50 whitespace-nowrap">Waiting for match events...</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="p-2 rounded-lg overflow-hidden">
-            <p className="text-sm text-yellow-300 whitespace-nowrap">
-                <span className="font-bold mr-2">LIVE:</span>{message}
+        <div className="text-left">
+            <p className="text-xs text-gray-400 uppercase tracking-wider">Live Feed</p>
+            <p className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${message ? 'text-yellow-300' : 'text-yellow-300/50'}`}>
+                {message || 'Waiting for match events...'}
             </p>
         </div>
     );
@@ -59,6 +52,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const [participants, setParticipants] = useState<MatchParticipant[]>([]);
     const [venueCondition, setVenueCondition] = useState<VenueCondition | null>(null);
     const [liveFeedMessage, setLiveFeedMessage] = useState<string | null>(null);
+    const [playerPositionHistory, setPlayerPositionHistory] = useState<number[]>([]);
     
     const participantsRef = useRef(participants);
     useEffect(() => {
@@ -103,13 +97,13 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         const opponent = finalStandings.find(p => p.isBot); // simplified for 1v1
         
         const playerRank = finalStandings.findIndex(p => !p.isBot) + 1;
-        const coinsEarned = playerRank === 1 ? 250 : 50;
+        const eurosEarned = playerRank === 1 ? 250 : 50;
 
         if (player) {
             const result: MatchResult = {
                 playerWeight: player.totalWeight,
                 opponentWeight: opponent ? opponent.totalWeight : 0,
-                coinsEarned,
+                eurosEarned,
                 standings: finalStandings,
             };
             onMatchEnd(result);
@@ -168,102 +162,142 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         if (participants.length === 0 || timeLeft <= 0) return;
 
         const simulationTimer = setInterval(() => {
-            setParticipants(prevParticipants => {
-                if (prevParticipants.length === 0) return prevParticipants;
+            const currentParticipants = participantsRef.current;
+            if (currentParticipants.length === 0) return;
 
-                let newLiveFeedMessage = '';
-                
-                const sortedBefore = [...prevParticipants].sort((a, b) => b.totalWeight - a.totalWeight);
-                const leaderBefore = sortedBefore[0];
-                const top3Before = new Set(sortedBefore.slice(0, 3).map(p => p.id));
+            let newLiveFeedMessage = '';
+            
+            const sortedBefore = [...currentParticipants].sort((a, b) => b.totalWeight - a.totalWeight);
+            const leaderBefore = sortedBefore[0];
+            const top3Before = new Set(sortedBefore.slice(0, 3).map(p => p.id));
 
-                const updatedParticipants = prevParticipants.map(p => {
-                    let currentLoadout = { ...p.loadout }; // Use a mutable copy for this tick
+            const updatedParticipants = currentParticipants.map(p => {
+                let currentLoadout = { ...p.loadout }; // Use a mutable copy for this tick
 
-                    // BOT AI: Occasionally change parameters
-                    if (p.isBot) {
-                        const BOT_ADAPT_CHANCE = 0.15; // 15% chance to adapt
-                        if (Math.random() < BOT_ADAPT_CHANCE) {
-                            const paramToChange = getRandom(Object.keys(currentLoadout).filter(k => k !== 'rod') as Array<keyof Loadout>);
-                            
-                            let options: string[] = [];
-                            switch (paramToChange) {
-                                case 'bait': options = MOCK_BAITS; break;
-                                case 'groundbait': options = MOCK_GROUNDBAITS; break;
-                                case 'hookSize': options = MOCK_HOOK_SIZES; break;
-                                case 'feederType': options = MOCK_FEEDER_TYPES; break;
-                                case 'feederTip': options = MOCK_FEEDER_TIPS; break;
-                                case 'castingDistance': options = MOCK_CASTING_DISTANCES; break;
-                                case 'castingInterval': options = MOCK_CASTING_INTERVALS; break;
-                            }
-
-                            if (options.length > 1) {
-                                const availableOptions = options.filter(o => o !== currentLoadout[paramToChange]);
-                                if (availableOptions.length > 0) {
-                                    currentLoadout[paramToChange] = getRandom(availableOptions);
-                                }
-                            }
-                        }
-                    }
-                    
-                    const score = Object.keys(currentLoadout).reduce((acc, key) => {
-                        if (currentLoadout[key as keyof Loadout] === optimalLoadout[key as keyof Loadout]) {
-                            return acc + 1;
-                        }
-                        return acc;
-                    }, 0);
-
-                    // Higher score = higher chance to catch a fish
-                    const catchChance = p.isBot ? 0.65 : score / Object.keys(currentLoadout).length * 0.8;
-                    const didCatch = Math.random() < catchChance;
-                    
-                    let weightGained = 0;
-                    let newCatchStreak = p.catchStreak;
-
-                    if (didCatch) {
-                        const fish = getRandom(MOCK_FISH_SPECIES);
-                        const weight = parseFloat((fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight)).toFixed(2));
-                        weightGained = weight;
-                        newCatchStreak += 1;
+                // BOT AI: Occasionally change parameters
+                if (p.isBot) {
+                    const BOT_ADAPT_CHANCE = 0.15; // 15% chance to adapt
+                    if (Math.random() < BOT_ADAPT_CHANCE) {
+                        const paramToChange = getRandom(Object.keys(currentLoadout).filter(k => k !== 'rod') as Array<keyof Loadout>);
                         
-                        // Check for big fish event
-                        if (weight > fish.maxWeight * 0.9) { // Top 10% of its species weight
-                            newLiveFeedMessage = `🚨 ${p.name} just landed a huge ${fish.name}!`;
+                        let options: string[] = [];
+                        switch (paramToChange) {
+                            case 'bait': options = MOCK_BAITS; break;
+                            case 'groundbait': options = MOCK_GROUNDBAITS; break;
+                            case 'hookSize': options = MOCK_HOOK_SIZES; break;
+                            case 'feederType': options = MOCK_FEEDER_TYPES; break;
+                            case 'feederTip': options = MOCK_FEEDER_TIPS; break;
+                            case 'castingDistance': options = MOCK_CASTING_DISTANCES; break;
+                            case 'castingInterval': options = MOCK_CASTING_INTERVALS; break;
                         }
-                    } else {
-                         newCatchStreak = 0;
-                    }
 
-                    return {
-                        ...p,
-                        loadout: currentLoadout, // Save the potentially updated loadout
-                        totalWeight: p.totalWeight + weightGained,
-                        catchStreak: newCatchStreak,
-                    };
-                });
-
-                // After all participants are updated, check for rank changes.
-                const sortedAfter = [...updatedParticipants].sort((a,b) => b.totalWeight - a.totalWeight);
-                const leaderAfter = sortedAfter[0];
-                
-                // Check for new leader, if it's not the same as before
-                if (leaderAfter && leaderBefore && leaderAfter.id !== leaderBefore.id) {
-                    newLiveFeedMessage = `👑 ${leaderAfter.name} takes the lead!`;
-                } else { // Only check this if there's no new leader, to avoid overwriting message
-                    // Check for players entering top 3
-                    const newTop3Players = sortedAfter.slice(0, 3).filter(p => !top3Before.has(p.id));
-                    if (newTop3Players.length > 0) {
-                        const player = newTop3Players[0];
-                        newLiveFeedMessage = `🔥 ${player.name} has entered the top 3!`;
+                        if (options.length > 1) {
+                            const availableOptions = options.filter(o => o !== currentLoadout[paramToChange]);
+                            if (availableOptions.length > 0) {
+                                currentLoadout[paramToChange] = getRandom(availableOptions);
+                            }
+                        }
                     }
                 }
                 
-                if (newLiveFeedMessage) {
-                    setLiveFeedMessage(newLiveFeedMessage);
+                const score = Object.keys(currentLoadout).reduce((acc, key) => {
+                    if (currentLoadout[key as keyof Loadout] === optimalLoadout[key as keyof Loadout]) {
+                        return acc + 1;
+                    }
+                    return acc;
+                }, 0);
+
+                // Higher score = higher chance to catch a fish
+                const catchChance = p.isBot ? 0.65 : score / Object.keys(currentLoadout).length * 0.8;
+                const didCatch = Math.random() < catchChance;
+                
+                let weightGained = 0;
+                let newCatchStreak = p.catchStreak;
+
+                if (didCatch) {
+                    const fish = getRandom(MOCK_FISH_SPECIES);
+                    const weight = parseFloat((fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight)).toFixed(2));
+                    weightGained = weight;
+                    newCatchStreak += 1;
+                    
+                    // Check for big fish event
+                    if (weight > fish.maxWeight * 0.9) { // Top 10% of its species weight
+                        newLiveFeedMessage = `🚨 ${p.name} just landed a huge ${fish.name}!`;
+                    }
+                } else {
+                     newCatchStreak = 0;
                 }
 
-                return updatedParticipants;
+                return {
+                    ...p,
+                    loadout: currentLoadout, // Save the potentially updated loadout
+                    totalWeight: p.totalWeight + weightGained,
+                    catchStreak: newCatchStreak,
+                };
             });
+
+            // After all participants are updated, check for rank changes.
+            const sortedAfter = [...updatedParticipants].sort((a,b) => b.totalWeight - a.totalWeight);
+            const leaderAfter = sortedAfter[0];
+            
+            // Check for new leader, if it's not the same as before
+            if (leaderAfter && leaderBefore && leaderAfter.id !== leaderBefore.id) {
+                newLiveFeedMessage = `👑 ${leaderAfter.name} takes the lead!`;
+            } else { // Only check this if there's no new leader, to avoid overwriting message
+                // Check for players entering top 3
+                const newTop3Players = sortedAfter.slice(0, 3).filter(p => !top3Before.has(p.id));
+                if (newTop3Players.length > 0) {
+                    const player = newTop3Players[0];
+                    newLiveFeedMessage = `🔥 ${player.name} has entered the top 3!`;
+                }
+            }
+
+            // --- TACTICAL HINT LOGIC ---
+            // Only generate a hint if no other major message was generated and with a certain probability.
+            const HINT_CHANCE = 0.35; // 35% chance per tick
+            if (!newLiveFeedMessage && Math.random() < HINT_CHANCE) {
+                const player = updatedParticipants.find(p => !p.isBot);
+                const playerRank = sortedAfter.findIndex(p => !p.isBot) + 1;
+
+                // Only give hints if player is not doing well (e.g., outside top 3)
+                if (player && playerRank > 3) {
+                    const top3Competitors = sortedAfter.slice(0, 3).filter(p => p.isBot);
+                    
+                    if (top3Competitors.length > 0) {
+                        const competitorToCopy = getRandom(top3Competitors);
+                        const playerLoadout = player.loadout;
+                        const competitorLoadout = competitorToCopy.loadout;
+                        
+                        const differentParams = (Object.keys(playerLoadout) as Array<keyof Loadout>)
+                            .filter(key => key !== 'rod' && playerLoadout[key] !== competitorLoadout[key]);
+
+                        if (differentParams.length > 0) {
+                            const paramToSuggest = getRandom(differentParams);
+                            const suggestedValue = competitorLoadout[paramToSuggest];
+                            
+                             const paramFriendlyNames: Record<keyof Loadout, string> = {
+                                rod: 'rod', bait: 'bait', groundbait: 'groundbait', hookSize: 'hook size',
+                                feederType: 'feeder type', feederTip: 'feeder tip', 
+                                castingDistance: 'casting distance', castingInterval: 'casting interval',
+                            };
+                            
+                            const friendlyName = paramFriendlyNames[paramToSuggest];
+                            newLiveFeedMessage = `💡 Hint: Try switching your ${friendlyName} to ${suggestedValue}.`;
+                        }
+                    }
+                }
+            }
+            
+            if (newLiveFeedMessage) {
+                setLiveFeedMessage(newLiveFeedMessage);
+            }
+
+            const playerRankAfter = sortedAfter.findIndex(p => !p.isBot) + 1;
+
+            setParticipants(updatedParticipants);
+            if (playerRankAfter > 0) {
+                setPlayerPositionHistory(prev => [...prev, playerRankAfter]);
+            }
         }, SIMULATION_TICK_RATE);
 
         return () => clearInterval(simulationTimer);
@@ -290,6 +324,52 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     
     const player = participants.find(p => !p.isBot);
     const bots = participants.filter(p => p.isBot);
+
+    const playerRank = useMemo(() => {
+        if (!participants.length) return 0;
+        const sorted = [...participants].sort((a, b) => b.totalWeight - a.totalWeight);
+        return sorted.findIndex(p => !p.isBot) + 1;
+    }, [participants]);
+
+    const positionTrend = useMemo(() => {
+        const history = playerPositionHistory;
+        if (history.length < 2) {
+            return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
+        }
+
+        const lastPos = history[history.length - 1];
+        const secondLastPos = history[history.length - 2];
+        const direction = Math.sign(lastPos - secondLastPos);
+
+        if (direction === 0) {
+            return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
+        }
+        
+        let trendCount = 0;
+        for (let i = history.length - 1; i > 0; i--) {
+            const current = history[i];
+            const previous = history[i - 1];
+            if (Math.sign(current - previous) === direction) {
+                trendCount++;
+            } else {
+                break;
+            }
+        }
+
+        if (trendCount === 0) {
+           return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
+        }
+        
+        if (direction === -1) { // Rank decreased (e.g., 5 -> 4), so position is UP
+            return { text: `Climbing`, icon: '🔼', color: 'text-green-400' };
+        }
+        
+        if (direction === 1) { // Rank increased (e.g., 4 -> 5), so position is DOWN
+            return { text: `Dropping`, icon: '🔽', color: 'text-red-400' };
+        }
+
+        return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
+    }, [playerPositionHistory]);
 
     if (!player) {
         return <div className="min-h-screen flex items-center justify-center"><p>Loading Match...</p></div>;
@@ -339,7 +419,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                     {param.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                 </select>
                             ) : (
-                                <p className="p-1 bg-gray-900/50 rounded truncate text-base">{p.loadout[param.key]}</p>
+                                <p className="w-full p-1 bg-gray-900/50 border border-gray-600 rounded truncate text-base">{p.loadout[param.key]}</p>
                             )}
                         </div>
                     ))}
@@ -350,13 +430,29 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
     return (
         <div className="p-2 md:p-4 max-w-4xl mx-auto flex flex-col h-screen">
-            <header className="flex justify-between items-center mb-4 p-2 bg-gray-800/50 rounded-lg">
-                <div className="flex-1 overflow-hidden">
-                    <LiveFeedTicker message={liveFeedMessage} />
+            <header className="mb-2 p-3 bg-gray-800/50 rounded-lg">
+                <div className="flex justify-between items-center w-full mb-3 text-center">
+                    <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Position</p>
+                        <p className="text-sm font-bold">
+                            {playerRank > 0 ? `${playerRank} / ${participants.length}` : 'N/A'}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Trend</p>
+                        <p className={`text-sm font-bold flex items-center justify-center gap-1 ${positionTrend.color}`}>
+                            <span>{positionTrend.icon}</span>
+                            <span>{positionTrend.text}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Time Left</p>
+                        <p className="text-sm font-bold">{formatTime(timeLeft)}</p>
+                    </div>
                 </div>
-                <div className="text-right pl-4">
-                    <p className="text-sm text-gray-400">Time Left</p>
-                    <p className="text-2xl font-bold">{formatTime(timeLeft)}</p>
+
+                <div className="border-t border-gray-700 pt-3">
+                    <LiveFeedTicker message={liveFeedMessage} />
                 </div>
             </header>
 
