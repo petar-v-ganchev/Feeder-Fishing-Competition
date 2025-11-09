@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant, VenueCondition, GameItem } from '../types';
 import {
@@ -37,11 +39,58 @@ const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length
 
 const LiveFeedTicker: React.FC<{ message: string | null }> = ({ message }) => {
     return (
-        <div className="text-left">
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Live Feed</p>
+        <div className="flex items-baseline gap-2">
+            <p className="text-xs text-gray-400 uppercase tracking-wider flex-shrink-0">LIVE FEED:</p>
             <p className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${message ? 'text-yellow-300' : 'text-yellow-300/50'}`}>
                 {message || 'Waiting for match events...'}
             </p>
+        </div>
+    );
+};
+
+interface StandingsVisualizerProps {
+    participants: MatchParticipant[];
+    leaderId: string | null;
+    onParticipantSelect: (participantId: string) => void;
+}
+
+const StandingsVisualizer: React.FC<StandingsVisualizerProps> = ({ participants, leaderId, onParticipantSelect }) => {
+    const maxWeight = useMemo(() => {
+        if (participants.length === 0) return 1; // Default to 1 to avoid division by zero
+        const max = Math.max(...participants.map(p => p.totalWeight));
+        return max > 0 ? max : 1;
+    }, [participants]);
+
+    return (
+        <div className="w-full h-8 bg-gray-900/50 rounded-md flex items-end justify-between p-1 gap-1 mt-3" aria-label="Real-time match standings visualization">
+            {participants.map(p => {
+                const heightPercentage = (p.totalWeight / maxWeight) * 100;
+                const isPlayer = !p.isBot;
+                const isLeader = p.id === leaderId;
+
+                const barClasses = [
+                    'w-full',
+                    'rounded-t-sm',
+                    'transition-all',
+                    'duration-500',
+                    'ease-out',
+                    isPlayer ? 'bg-blue-500' : 'bg-gray-600 cursor-pointer hover:bg-gray-500',
+                    isLeader ? 'shadow-[0_0_6px_1px_rgba(250,204,21,0.7)]' : ''
+                ].join(' ');
+
+                return (
+                    <div
+                        key={p.id}
+                        onClick={() => !isPlayer && onParticipantSelect(p.id)}
+                        className={barClasses}
+                        style={{ height: `${Math.max(heightPercentage, 2)}%` }} // min height of 2% to be visible
+                        title={`${p.name}: ${p.totalWeight.toFixed(2)} kg`}
+                        role={!isPlayer ? 'button' : undefined}
+                        tabIndex={!isPlayer ? 0 : -1}
+                        aria-label={!isPlayer ? `Scroll to ${p.name}'s column` : undefined}
+                    ></div>
+                );
+            })}
         </div>
     );
 };
@@ -55,6 +104,9 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const [playerPositionHistory, setPlayerPositionHistory] = useState<number[]>([]);
     
     const participantsRef = useRef(participants);
+    const botsContainerRef = useRef<HTMLDivElement>(null);
+    const botColumnRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
     useEffect(() => {
         participantsRef.current = participants;
     }, [participants]);
@@ -241,11 +293,11 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             const leaderAfter = sortedAfter[0];
             
             // Check for new leader, if it's not the same as before
-            if (leaderAfter && leaderBefore && leaderAfter.id !== leaderBefore.id) {
+            if (leaderAfter && leaderBefore && leaderAfter.id !== leaderBefore.id && leaderAfter.totalWeight > 0) {
                 newLiveFeedMessage = `👑 ${leaderAfter.name} takes the lead!`;
             } else { // Only check this if there's no new leader, to avoid overwriting message
                 // Check for players entering top 3
-                const newTop3Players = sortedAfter.slice(0, 3).filter(p => !top3Before.has(p.id));
+                const newTop3Players = sortedAfter.slice(0, 3).filter(p => !top3Before.has(p.id) && p.totalWeight > 0);
                 if (newTop3Players.length > 0) {
                     const player = newTop3Players[0];
                     newLiveFeedMessage = `🔥 ${player.name} has entered the top 3!`;
@@ -311,6 +363,17 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             return p;
         }));
     };
+
+    const handleParticipantSelect = useCallback((participantId: string) => {
+        const botElement = botColumnRefs.current.get(participantId);
+        if (botElement) {
+            botElement.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'start',
+                block: 'nearest',
+            });
+        }
+    }, []);
     
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -331,9 +394,13 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return sorted.findIndex(p => !p.isBot) + 1;
     }, [participants]);
 
+    const allWeightsZero = useMemo(() => {
+        return participants.every(p => p.totalWeight === 0);
+    }, [participants]);
+
     const positionTrend = useMemo(() => {
         const history = playerPositionHistory;
-        if (history.length < 2) {
+        if (history.length < 2 || allWeightsZero) {
             return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
         }
 
@@ -369,7 +436,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         }
 
         return { text: 'Holding', icon: '↔️', color: 'text-gray-400' };
-    }, [playerPositionHistory]);
+    }, [playerPositionHistory, allWeightsZero]);
 
     if (!player) {
         return <div className="min-h-screen flex items-center justify-center"><p>Loading Match...</p></div>;
@@ -387,7 +454,8 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     ];
 
     const sortedParticipants = [...participants].sort((a, b) => b.totalWeight - a.totalWeight);
-    const leaderId = sortedParticipants[0]?.id;
+    const leaderId = sortedParticipants[0]?.totalWeight > 0 ? sortedParticipants[0]?.id : null;
+
 
     const renderColumnContent = (p: MatchParticipant) => {
         const isPlayer = !p.isBot;
@@ -400,9 +468,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                        <span className="truncate">{p.name}</span>
                     </p>
                     <p className={`text-xl font-bold ${isPlayer ? 'text-blue-300' : ''}`}>
-                        {isPlayer 
-                            ? (p.totalWeight === 0 ? 'Blank' : `${p.totalWeight.toFixed(2)} kg`) 
-                            : (p.totalWeight < 1 ? 'Blank' : `${Math.floor(p.totalWeight)}+ kg`)}
+                        {p.totalWeight === 0 ? 'Blank' : `${p.totalWeight.toFixed(2)} kg`}
                     </p>
                 </div>
 
@@ -435,7 +501,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     <div>
                         <p className="text-xs text-gray-400 uppercase tracking-wider">Position</p>
                         <p className="text-sm font-bold">
-                            {playerRank > 0 ? `${playerRank} / ${participants.length}` : 'N/A'}
+                           {allWeightsZero ? '-' : (playerRank > 0 ? `${playerRank} / ${participants.length}` : 'N/A')}
                         </p>
                     </div>
                     <div>
@@ -453,6 +519,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
                 <div className="border-t border-gray-700 pt-3">
                     <LiveFeedTicker message={liveFeedMessage} />
+                    <StandingsVisualizer participants={participants} leaderId={leaderId} onParticipantSelect={handleParticipantSelect} />
                 </div>
             </header>
 
@@ -465,10 +532,13 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 </div>
 
                 {/* Bots Container (Scrollable) */}
-                <div className="flex-grow overflow-x-auto whitespace-nowrap snap-x snap-mandatory scroll-smooth scroll-pl-2">
+                <div ref={botsContainerRef} className="flex-grow overflow-x-auto whitespace-nowrap snap-x snap-mandatory scroll-smooth scroll-pl-2">
                     <div className="inline-flex space-x-2 h-full p-2">
                         {bots.map((p) => (
-                            <div key={p.id} className="w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border border-gray-700 snap-start">
+                            <div 
+                                key={p.id} 
+                                ref={(el) => botColumnRefs.current.set(p.id, el)}
+                                className="w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border border-gray-700 snap-start">
                                 {renderColumnContent(p)}
                             </div>
                         ))}

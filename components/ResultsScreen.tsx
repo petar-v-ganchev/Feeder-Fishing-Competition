@@ -19,7 +19,7 @@ const RankChangeItem: React.FC<{label: string, oldRank: number, newRank: number}
             <div className="flex items-center space-x-4">
                 <span className="font-bold">#{newRank}</span>
                 <span className={`font-semibold w-12 text-right ${changeColor}`}>
-                    ({changeText})
+                    {changeText}
                 </span>
             </div>
         </div>
