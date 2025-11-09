@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Screen, Loadout, User, GameItem } from '../types';
 import { Button } from './common/Button';
@@ -57,10 +56,21 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
     <div className="p-4 max-w-2xl mx-auto">
       <Header title="Match Prep" onBack={onBack} />
       
-      <Card className="mb-6 text-center">
-        <p className="text-gray-400">Dominant Species Expected</p>
-        <h2 className="text-2xl font-bold text-blue-400">Bream</h2>
-        <p className="text-sm text-gray-500 mt-1">Venue: Crystal Lake</p>
+      <Card className="mb-6">
+        <div className="text-center border-b border-gray-700 pb-2 mb-3">
+            <h2 className="text-xl font-bold">Crystal Lake</h2>
+        </div>
+        <div className="flex justify-around items-center text-center">
+            <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Dominant</p>
+                <p className="font-semibold text-blue-400">Bream <span className="text-sm font-normal text-gray-300">(Medium)</span></p>
+            </div>
+            <div className="border-l border-gray-600 h-8 self-center"></div>
+            <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Secondary</p>
+                <p className="font-semibold text-teal-400">Roach <span className="text-sm font-normal text-gray-300">(Small)</span></p>
+            </div>
+        </div>
       </Card>
       
       <Card>
