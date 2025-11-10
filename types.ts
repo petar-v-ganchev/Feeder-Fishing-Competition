@@ -12,6 +12,7 @@ export enum Screen {
   Shop,
   Leaderboard,
   EditProfile,
+  CreateProfile,
 }
 
 export interface User {
@@ -84,7 +85,6 @@ export interface NewsItem {
 export interface MatchHistory {
   id?: string; // Firestore doc ID
   userId: string;
-  displayName: string;
   country: string;
   isWin: boolean;
   rank: number;

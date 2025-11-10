@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
-import { registerUser, loginUser } from '../services/userService';
-import { MOCK_COUNTRIES } from '../constants';
+import { loginUser } from '../services/userService';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 export const LoginScreen: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [country, setCountry] = useState(MOCK_COUNTRIES[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     // Check for registration errors passed from the main App component
@@ -20,6 +20,12 @@ export const LoginScreen: React.FC = () => {
       setError(registrationError);
       setIsRegistering(true); // Switch to register tab to show the error contextually
       sessionStorage.removeItem('registrationError');
+    }
+    
+    // Check for a remembered email from a previous session
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
     }
   }, []);
 
@@ -30,38 +36,40 @@ export const LoginScreen: React.FC = () => {
 
     try {
       if (isRegistering) {
-        if (!email || !password || !displayName || !country) {
+        if (!email || !password) {
           throw new Error('Please fill in all fields.');
         }
-        if (displayName.length < 3 || displayName.length > 15) {
-            throw new Error("Display name must be between 3 and 15 characters.");
-        }
-        
-        // The new registerUser service function handles the entire flow:
-        // 1. Creates Auth User
-        // 2. Creates Firestore Profile (with retries)
-        // 3. Cleans up Auth User if profile creation fails
-        await registerUser(email, password, displayName, country);
+        // Step 1 of registration: Create the auth user.
+        // The onAuthStateChanged listener in App.tsx will detect this
+        // and navigate the user to the CreateProfileScreen.
+        await createUserWithEmailAndPassword(auth, email, password);
 
-        // On success, we wait. The onAuthStateChanged listener in App.tsx will detect
-        // the new user, fetch their now-existing profile, and navigate to the main menu.
       } else {
         if (!email || !password) {
           throw new Error('Please enter your email and password.');
         }
-        await loginUser({ email, password });
+        await loginUser({ email, password, rememberMe });
         // onAuthStateChanged in App.tsx will handle the rest
       }
     } catch (err: any) {
-        if (err.code === 'auth/email-already-in-use') {
+        const errorCode = err.code;
+        const errorMessage = (err.message || '').toLowerCase();
+
+        if (errorCode === 'auth/email-already-in-use' || errorMessage.includes('email-already-in-use')) {
           setError('An account with this email already exists. Please login instead.');
+        } else if (
+            errorCode === 'auth/invalid-credential' || 
+            errorCode === 'auth/wrong-password' ||
+            errorCode === 'auth/invalid-login-credentials' ||
+            errorMessage.includes('invalid-credential') ||
+            errorMessage.includes('invalid login credentials')
+        ) {
+          setError('Invalid email or password. Please try again.');
         } else {
-          const friendlyMessage = err.message
-              .replace('Firebase: ', '')
-              .replace(/ \(auth\/[a-z-]+\)\.?/, '');
-          setError(friendlyMessage);
+          console.error("Unhandled login error:", err);
+          setError('An unexpected error occurred. Please check your connection and try again.');
         }
-        setIsLoading(false); // Only set loading to false on error. On success, we wait for screen change.
+        setIsLoading(false);
     }
   };
 
@@ -106,23 +114,20 @@ export const LoginScreen: React.FC = () => {
               required
             />
 
-          {isRegistering && (
-            <>
+          {!isRegistering && (
+            <div className="flex items-center">
               <input
-                id="displayName"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Display Name (3-15 characters)"
-                required
-                minLength={3}
-                maxLength={15}
+                id="rememberMe"
+                name="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
-              <select id="country" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </>
+              <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-300 cursor-pointer">
+                Remember me
+              </label>
+            </div>
           )}
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}

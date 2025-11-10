@@ -8,7 +8,7 @@ interface ConfirmationModalProps {
   title: string;
   message: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
   confirmVariant?: 'primary' | 'secondary' | 'danger';
@@ -34,9 +34,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         <h2 id="confirmation-title" className="text-2xl font-bold mb-4">{title}</h2>
         <p className="text-gray-300 mb-6">{message}</p>
         <div className="flex justify-end gap-4">
-          <Button variant="secondary" onClick={onCancel} className="!w-auto !py-2 px-6">
-            {cancelText}
-          </Button>
+          {onCancel && (
+            <Button variant="secondary" onClick={onCancel} className="!w-auto !py-2 px-6">
+              {cancelText}
+            </Button>
+          )}
           <Button variant={confirmVariant} onClick={onConfirm} className="!w-auto !py-2 px-6">
             {confirmText}
           </Button>

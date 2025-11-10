@@ -75,7 +75,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, us
         ) : players.length > 0 ? (
             <ul>
                 {players.map((player) => (
-                    <li key={player.rank} className={`flex items-center justify-between py-1 px-2 rounded-lg ${player.id === user.id ? 'bg-blue-900/50' : ''}`}>
+                    <li key={player.id} className={`flex items-center justify-between py-1 px-2 rounded-lg ${player.id === user.id ? 'bg-blue-900/50' : ''}`}>
                        <div className="flex items-center">
                             <span className="font-bold text-lg w-8 text-center text-gray-400">{player.rank}</span>
                             <span className="ml-4 font-semibold">{player.name}</span>

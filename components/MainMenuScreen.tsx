@@ -60,7 +60,9 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
         <Button onClick={() => onNavigate(Screen.Matchmaking)} disabled>Quick Match (vs Humans)</Button>
         <div className="grid grid-cols-2 gap-4">
           <Button onClick={() => onNavigate(Screen.Profile)} variant="secondary">Profile</Button>
+          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary">Inventory</Button>
           <Button onClick={() => onNavigate(Screen.Leaderboard)} variant="secondary">Leaderboard</Button>
+          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary">Shop</Button>
         </div>
       </div>
     </div>

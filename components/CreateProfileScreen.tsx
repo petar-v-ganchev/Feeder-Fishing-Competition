@@ -3,7 +3,6 @@ import type { User as FirebaseAuthUser } from 'firebase/auth';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
 import { MOCK_COUNTRIES } from '../constants';
-// FIX: The function 'createUserProfile' is not exported from 'userService'. It has been replaced with the correct function 'completeRegistration'.
 import { completeRegistration } from '../services/userService';
 import type { User } from '../types';
 
@@ -26,7 +25,6 @@ export const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ fireba
       if (!displayName || !country) {
         throw new Error('Please complete your profile.');
       }
-      // FIX: The function 'createUserProfile' does not exist. It has been replaced with 'completeRegistration' to correctly create the user profile.
       const newUser = await completeRegistration({
         uid: firebaseUser.uid,
         email: firebaseUser.email!,

@@ -9,6 +9,7 @@ interface ProfileScreenProps {
   user: User;
   onNavigate: (screen: Screen) => void;
   onLogout: () => void;
+  onBack: () => void;
 }
 
 const StatItem: React.FC<{label: string, value: string | number, isLoading?: boolean}> = ({label, value, isLoading}) => (
@@ -22,7 +23,7 @@ const StatItem: React.FC<{label: string, value: string | number, isLoading?: boo
     </div>
 );
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, onLogout }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, onLogout, onBack }) => {
   const [ranks, setRanks] = useState<{global: number, country: number} | null>(null);
   const [isLoadingRanks, setIsLoadingRanks] = useState(true);
 
@@ -38,7 +39,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <Header title="Profile & Stats" onBack={() => onNavigate(Screen.MainMenu)} />
+      <Header title="Profile & Stats" onBack={onBack} />
       
       <Card className="mb-6">
         <div className="flex items-center space-x-4">

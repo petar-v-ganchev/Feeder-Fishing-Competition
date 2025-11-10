@@ -13,20 +13,44 @@ import { InventoryScreen } from './components/InventoryScreen';
 import { ShopScreen } from './components/ShopScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { EditProfileScreen } from './components/EditProfileScreen';
+import { CreateProfileScreen } from './components/CreateProfileScreen';
 import { getDailyChallenge } from './services/dailyChallengeService';
 import { updatePlayerStats } from './services/leaderboardService';
-import { getUserProfile, updateUserProfile, deleteUserAccount } from './services/userService';
+import { getUserProfile, updateUserProfile, deleteUserAccount, updateUserEmail } from './services/userService';
+import { ConfirmationModal } from './components/common/ConfirmationModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [pendingFirebaseUser, setPendingFirebaseUser] = useState<FirebaseAuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.Login);
+  const [screenStack, setScreenStack] = useState<Screen[]>([Screen.Login]);
   
   const [matchLoadout, setMatchLoadout] = useState<Loadout | null>(null);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [isChallengeLoading, setIsChallengeLoading] = useState(false);
+  const [infoModal, setInfoModal] = useState<{title: string, message: string} | null>(null);
+
+  const currentScreen = screenStack[screenStack.length - 1];
   
+  const handleNavigate = (screen: Screen) => {
+    setScreenStack(prev => [...prev, screen]);
+  };
+
+  const handleBack = () => {
+    if (screenStack.length > 1) {
+      setScreenStack(prev => prev.slice(0, -1));
+    }
+  };
+  
+  const handleReplaceScreen = (screen: Screen) => {
+    setScreenStack(prev => [...prev.slice(0, -1), screen]);
+  };
+
+  const handleResetStack = (screen: Screen) => {
+    setScreenStack([screen]);
+  };
+
   const fetchAndSetChallenge = async () => {
       const today = new Date().toDateString();
       const storedChallenge = localStorage.getItem('dailyChallenge');
@@ -48,43 +72,42 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        let userProfile = await getUserProfile(firebaseUser.uid);
-
-        // Heuristic to detect a new user: creation time and last sign-in time are very close.
-        // This helps us handle the race condition where the profile document isn't available yet.
-        const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
-        const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
-        const isNewUser = Math.abs(creationTime - lastSignInTime) < 5000; // 5-second tolerance
-
-        if (!userProfile && isNewUser) {
-          console.log("New user detected, but profile not found. Retrying to fetch profile...");
-          // Retry fetching the profile to account for Firestore replication delay.
-          for (let i = 0; i < 3; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // 1s, 2s, 3s waits
-            userProfile = await getUserProfile(firebaseUser.uid);
-            if (userProfile) {
-              console.log("Profile found on retry.");
-              break;
-            }
-          }
-        }
+        const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
-          // This is a normal login for an existing user OR a successful registration.
+          // Sync email from Auth to Firestore if they differ. This handles verified email changes.
+          if (firebaseUser.email && userProfile.email !== firebaseUser.email) {
+            console.log("Email mismatch detected. Syncing from Auth to Firestore.");
+            await updateUserProfile(firebaseUser.uid, { email: firebaseUser.email });
+            userProfile.email = firebaseUser.email;
+          }
+
           setUser(userProfile);
-          setCurrentScreen(Screen.MainMenu);
+          setPendingFirebaseUser(null);
+          handleResetStack(Screen.MainMenu);
           fetchAndSetChallenge();
         } else {
           // Auth user exists but profile doc is missing.
-          // This could happen if registration was interrupted. Signing out is the correct recovery path.
-          console.error(`User ${firebaseUser.uid} is authenticated but has no profile. Forcing logout.`);
-          await signOut(auth);
-          sessionStorage.setItem('registrationError', 'Your profile is incomplete. Please try to register again.');
+          const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
+          const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
+          const isNewUser = Math.abs(creationTime - lastSignInTime) < 5000;
+
+          if (isNewUser) {
+            // This is a new user who needs to create their profile.
+            setPendingFirebaseUser(firebaseUser);
+            handleResetStack(Screen.CreateProfile);
+          } else {
+            // This is an established user whose profile is genuinely missing. This is an error state.
+            console.error(`User ${firebaseUser.uid} is authenticated but has no profile. Forcing logout.`);
+            await signOut(auth);
+            sessionStorage.setItem('registrationError', 'Your user profile could not be found. Please contact support.');
+          }
         }
       } else {
         // User is logged out.
         setUser(null);
-        setCurrentScreen(Screen.Login);
+        setPendingFirebaseUser(null);
+        handleResetStack(Screen.Login);
       }
       setIsAuthLoading(false);
     });
@@ -93,17 +116,15 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = async () => {
+    if (user?.email) {
+      localStorage.setItem('rememberedEmail', user.email);
+    }
     await signOut(auth);
-    // The onAuthStateChanged listener will handle state updates
-  };
-
-  const handleNavigate = (screen: Screen) => {
-    setCurrentScreen(screen);
   };
 
   const handleStartMatch = (loadout: Loadout) => {
     setMatchLoadout(loadout);
-    setCurrentScreen(Screen.MatchUI);
+    handleNavigate(Screen.MatchUI);
   };
 
   const handleMatchEnd = async (result: MatchResult) => {
@@ -112,7 +133,6 @@ const App: React.FC = () => {
         const isWin = playerRank === 1;
         const isTop5 = playerRank <= 5;
 
-        // Update daily challenge progress
         if (dailyChallenge && !dailyChallenge.isCompleted) {
             let newProgress = dailyChallenge.progress;
             const { challengeType, targetCount } = dailyChallenge;
@@ -130,10 +150,8 @@ const App: React.FC = () => {
             }
         }
         
-        // --- Update stats and log match history ---
-        await updatePlayerStats(user.id, isWin, playerRank, user.country, user.displayName);
+        await updatePlayerStats(user.id, isWin, playerRank, user.country);
 
-        // Optimistically update local user state for immediate feedback
         const newStats = { ...user.stats };
         newStats.matchesPlayed += 1;
         if (isWin) newStats.wins += 1;
@@ -145,14 +163,14 @@ const App: React.FC = () => {
         });
 
         setMatchResult(result);
-        setCurrentScreen(Screen.Results);
+        handleReplaceScreen(Screen.Results);
     }
   };
 
   const handleResultsContinue = () => {
     setMatchResult(null);
     setMatchLoadout(null);
-    setCurrentScreen(Screen.MainMenu);
+    handleResetStack(Screen.MainMenu);
   };
 
   const handleClaimChallengeReward = () => {
@@ -167,8 +185,14 @@ const App: React.FC = () => {
 
   const handlePurchaseItem = async (itemToBuy: GameItem) => {
     if (!user) return;
-    if (user.inventory.some(i => i.id === itemToBuy.id)) return alert("You already own this item.");
-    if (user.euros < itemToBuy.price) return alert("You don't have enough euros.");
+    if (user.inventory.some(i => i.id === itemToBuy.id)) {
+      setInfoModal({ title: "Already Owned", message: "You already own this item." });
+      return;
+    }
+    if (user.euros < itemToBuy.price) {
+      setInfoModal({ title: "Insufficient Funds", message: "You don't have enough euros to purchase this." });
+      return;
+    }
 
     const updatedUser: User = {
       ...user,
@@ -177,30 +201,50 @@ const App: React.FC = () => {
     };
     
     const { id, ...dataToUpdate } = updatedUser;
-    await updateUserProfile(id, dataToUpdate, user);
+    await updateUserProfile(id, dataToUpdate);
     setUser(updatedUser);
-    alert(`Successfully purchased ${itemToBuy.name}!`);
+    setInfoModal({ title: "Purchase Successful", message: `Successfully purchased ${itemToBuy.name}!` });
   };
 
-  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string }) => {
-    if (!user) return;
+  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string }): Promise<{ emailChanged: boolean }> => {
+    if (!user) {
+        throw new Error("User not found.");
+    }
     try {
-        await updateUserProfile(user.id, updatedData, user);
-        setUser({ ...user, ...updatedData });
-        alert('Profile updated successfully!');
-        setCurrentScreen(Screen.Profile);
+        const hasEmailChanged = updatedData.email.toLowerCase() !== user.email.toLowerCase();
+
+        const profileDataToUpdate: Partial<User> = {
+            displayName: updatedData.displayName,
+            avatar: updatedData.avatar,
+            country: updatedData.country,
+        };
+
+        await updateUserProfile(user.id, profileDataToUpdate);
+
+        if (hasEmailChanged) {
+            await updateUserEmail(updatedData.email);
+        }
+        
+        setUser(prev => prev ? { ...prev, ...profileDataToUpdate } : null);
+        
+        return { emailChanged: hasEmailChanged };
     } catch (error: any) {
-        alert(`Error updating profile: ${error.message}`);
+        console.error("Error updating profile in App.tsx:", error);
+        // Robustly get the error message, whether it's from an Error object or a raw string.
+        const errorMessage = error?.message || error;
+        throw new Error(errorMessage || 'An unexpected error occurred.');
     }
   };
 
   const handleDeleteProfile = async () => {
     try {
       await deleteUserAccount();
-      // onAuthStateChanged listener handles UI changes
       alert('Profile deleted.');
     } catch (error: any) {
-      alert(`Error deleting profile: ${error.message}. You may need to log in again to perform this action.`);
+      setInfoModal({ 
+        title: "Deletion Error", 
+        message: `Error deleting profile: ${error.message}. You may need to log in again to perform this action.`
+      });
     }
   };
 
@@ -209,41 +253,62 @@ const App: React.FC = () => {
       return <div className="min-h-screen flex items-center justify-center"><p>Loading Game...</p></div>;
     }
     
-    if (!user) {
+    if (currentScreen === Screen.Login) {
       return <LoginScreen />;
     }
+
+    if (currentScreen === Screen.CreateProfile && pendingFirebaseUser) {
+      return <CreateProfileScreen firebaseUser={pendingFirebaseUser} onProfileCreated={(newUser) => {
+          setUser(newUser);
+          setPendingFirebaseUser(null);
+          handleResetStack(Screen.MainMenu);
+      }} />;
+    }
     
-    // Logged-in user, render game screens
+    if (!user) {
+        // If we are not loading, not on Login/CreateProfile, and have no user, something is wrong. Default to Login.
+        return <LoginScreen />;
+    }
+    
     switch (currentScreen) {
       case Screen.MainMenu:
         return <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} />;
       case Screen.Matchmaking:
-        return <MatchmakingScreen onMatchFound={() => setCurrentScreen(Screen.Loadout)} />;
+        return <MatchmakingScreen onMatchFound={() => handleNavigate(Screen.Loadout)} />;
       case Screen.Loadout:
-        return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => setCurrentScreen(Screen.MainMenu)} onNavigate={handleNavigate} />;
+        return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => handleResetStack(Screen.MainMenu)} onNavigate={handleNavigate} />;
       case Screen.MatchUI:
         return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} />;
       case Screen.Results:
         return matchResult && <ResultsScreen result={matchResult} onContinue={handleResultsContinue} />;
       case Screen.Profile:
-        return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} onBack={handleBack} />;
       case Screen.EditProfile:
-        return <EditProfileScreen user={user} onBack={() => setCurrentScreen(Screen.Profile)} onSave={handleUpdateProfile} onDeleteAccount={handleDeleteProfile} />;
+        return <EditProfileScreen user={user} onBack={handleBack} onSave={handleUpdateProfile} onDeleteAccount={handleDeleteProfile} />;
       case Screen.Inventory:
-          return <InventoryScreen user={user} onBack={() => setCurrentScreen(Screen.Loadout)} />;
+          return <InventoryScreen user={user} onBack={handleBack} />;
       case Screen.Shop:
-          return <ShopScreen user={user} onBack={() => setCurrentScreen(Screen.Loadout)} onPurchase={handlePurchaseItem} />;
+          return <ShopScreen user={user} onBack={handleBack} onPurchase={handlePurchaseItem} />;
       case Screen.Leaderboard:
-          return <LeaderboardScreen user={user} onBack={() => setCurrentScreen(Screen.MainMenu)} />;
+          return <LeaderboardScreen user={user} onBack={handleBack} />;
       default:
-        // Fallback for any unknown state, go to main menu or login.
-        return user ? <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} /> : <LoginScreen />;
+        return <LoginScreen />;
     }
   };
 
   return (
     <main className="container mx-auto max-w-lg min-h-screen bg-gray-900 text-white">
       {renderScreen()}
+      {infoModal && (
+        <ConfirmationModal
+          isOpen={true}
+          title={infoModal.title}
+          message={infoModal.message}
+          onConfirm={() => setInfoModal(null)}
+          confirmText="OK"
+          confirmVariant="primary"
+        />
+      )}
     </main>
   );
 };

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// FIX: 'Screen' is an enum used as a value, so it must be imported as a value, not a type.
 import { Screen, type Loadout, type User, type GameItem } from '../types';
 import { Button } from './common/Button';
 import { Card } from './common/Card';

@@ -100,6 +100,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const [venueCondition, setVenueCondition] = useState<VenueCondition | null>(null);
     const [liveFeedMessage, setLiveFeedMessage] = useState<string | null>(null);
     const [playerPositionHistory, setPlayerPositionHistory] = useState<number[]>([]);
+    const [catchEvents, setCatchEvents] = useState<Map<string, { weight: number; isBigFish: boolean }>>(new Map());
     
     const participantsRef = useRef(participants);
     const botsContainerRef = useRef<HTMLDivElement>(null);
@@ -216,6 +217,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             if (currentParticipants.length === 0) return;
 
             let newLiveFeedMessage = '';
+            const newCatchEvents = new Map<string, { weight: number; isBigFish: boolean }>();
             
             const sortedBefore = [...currentParticipants].sort((a, b) => b.totalWeight - a.totalWeight);
             const leaderBefore = sortedBefore[0];
@@ -270,8 +272,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     weightGained = weight;
                     newCatchStreak += 1;
                     
-                    // Check for big fish event
-                    if (weight > fish.maxWeight * 0.9) { // Top 10% of its species weight
+                    const isBigFish = weight > fish.maxWeight * 0.9;
+                    newCatchEvents.set(p.id, { weight, isBigFish });
+                    
+                    if (isBigFish) { // Top 10% of its species weight
                         newLiveFeedMessage = `🚨 ${p.name} just landed a huge ${fish.name}!`;
                     }
                 } else {
@@ -344,6 +348,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
             const playerRankAfter = sortedAfter.findIndex(p => !p.isBot) + 1;
 
+            setCatchEvents(newCatchEvents);
             setParticipants(updatedParticipants);
             if (playerRankAfter > 0) {
                 setPlayerPositionHistory(prev => [...prev, playerRankAfter]);
@@ -456,6 +461,16 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const sortedParticipants = [...participants].sort((a, b) => b.totalWeight - a.totalWeight);
     const leaderId = sortedParticipants[0]?.totalWeight > 0 ? sortedParticipants[0]?.id : null;
 
+    const CatchAnimation: React.FC<{ weight: number; isBigFish: boolean }> = ({ weight, isBigFish }) => {
+        return (
+            <div 
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 rounded-lg pointer-events-none z-10 animate-catch-float
+                            ${isBigFish ? 'bg-yellow-500/80 text-white shadow-lg shadow-yellow-500/50' : 'bg-green-500/80 text-white shadow-lg shadow-green-500/50'}`}
+            >
+                <span className="font-bold text-lg whitespace-nowrap">+{weight.toFixed(2)}kg</span>
+            </div>
+        );
+    };
 
     const renderColumnContent = (p: MatchParticipant) => {
         const isPlayer = !p.isBot;
@@ -494,6 +509,11 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         );
     };
 
+    const playerCatchEvent = catchEvents.get(player.id);
+    const playerColumnClasses = `w-40 h-full rounded-lg p-2 flex flex-col bg-blue-900/50 border-2 transition-all duration-300 relative ${
+        playerCatchEvent ? (playerCatchEvent.isBigFish ? 'border-yellow-400' : 'border-green-400') : 'border-blue-600'
+    }`;
+
     return (
         <div className="p-2 md:p-4 max-w-4xl mx-auto flex flex-col h-screen">
             <header className="mb-2 p-3 bg-gray-800/50 rounded-lg">
@@ -526,29 +546,36 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             <div className="flex-grow flex overflow-hidden">
                 {/* Player Column (Fixed) */}
                 <div className="flex-shrink-0 p-2 pr-0">
-                    <div className="w-40 h-full rounded-lg p-2 flex flex-col bg-blue-900/50 border border-blue-600">
+                    <div className={playerColumnClasses}>
                         {renderColumnContent(player)}
+                        {playerCatchEvent && <CatchAnimation key={`${player.id}-${timeLeft}`} {...playerCatchEvent} />}
                     </div>
                 </div>
 
                 {/* Bots Container (Scrollable) */}
                 <div ref={botsContainerRef} className="flex-grow overflow-x-auto whitespace-nowrap snap-x snap-mandatory scroll-smooth scroll-pl-2">
                     <div className="inline-flex space-x-2 h-full p-2">
-                        {bots.map((p) => (
-                            <div 
-                                key={p.id} 
-                                // FIX: The ref callback must not return a value. Wrapped in curly braces to ensure void return. Also added cleanup to delete the ref from the map on unmount.
-                                ref={(el) => {
-                                    if (el) {
-                                        botColumnRefs.current.set(p.id, el);
-                                    } else {
-                                        botColumnRefs.current.delete(p.id);
-                                    }
-                                }}
-                                className="w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border border-gray-700 snap-start">
-                                {renderColumnContent(p)}
-                            </div>
-                        ))}
+                        {bots.map((p) => {
+                            const botCatchEvent = catchEvents.get(p.id);
+                            const botColumnClasses = `w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border-2 transition-all duration-300 snap-start relative ${
+                                botCatchEvent ? (botCatchEvent.isBigFish ? 'border-yellow-400' : 'border-green-400') : 'border-gray-700'
+                            }`;
+                            return (
+                                <div 
+                                    key={p.id} 
+                                    ref={(el) => {
+                                        if (el) {
+                                            botColumnRefs.current.set(p.id, el);
+                                        } else {
+                                            botColumnRefs.current.delete(p.id);
+                                        }
+                                    }}
+                                    className={botColumnClasses}>
+                                    {renderColumnContent(p)}
+                                    {botCatchEvent && <CatchAnimation key={`${p.id}-${timeLeft}`} {...botCatchEvent} />}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

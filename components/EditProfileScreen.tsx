@@ -5,11 +5,12 @@ import { Card } from './common/Card';
 import { Header } from './common/Header';
 import { MOCK_COUNTRIES } from '../constants';
 import { ConfirmationModal } from './common/ConfirmationModal';
+import { resetPassword } from '../services/userService';
 
 interface EditProfileScreenProps {
   user: User;
   onBack: () => void;
-  onSave: (updatedData: { displayName: string; email: string; avatar: string; country: string }) => void;
+  onSave: (updatedData: { displayName: string; email: string; avatar: string; country: string }) => Promise<{ emailChanged: boolean }>;
   onDeleteAccount: () => void;
 }
 
@@ -50,14 +51,15 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar);
     const [country, setCountry] = useState(user.country);
-    // Password fields are for UI demonstration; Firebase requires re-authentication for password changes,
-    // which is beyond the scope of this implementation.
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+    const [isResetSuccessModalOpen, setIsResetSuccessModalOpen] = useState(false);
+    const [isEmailInfoModalOpen, setIsEmailInfoModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [displayNameError, setDisplayNameError] = useState<string | null>(null);
 
     const handleAvatarClick = () => {
         fileInputRef.current?.click();
@@ -79,22 +81,48 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-
-        // The uniqueness check is now handled atomically by the onSave function's backend logic.
-        // Note: Email & Password changes require separate Firebase flows (updateEmail, updatePassword)
-        // often involving re-authentication, so we are only saving non-sensitive data here.
-        onSave({ displayName, email: user.email, avatar, country });
-        
-        // The parent component will set loading to false after the async operation.
-        // To provide immediate feedback, we can optimistically set it here, but it's better
-        // managed by the parent who knows when the async call is truly done.
-        // For now, let's assume the parent will handle navigation and state changes.
-        // We'll leave isLoading=true to prevent double-clicks.
+        setError(null);
+        setDisplayNameError(null);
+        try {
+            const { emailChanged } = await onSave({ displayName, email, avatar, country });
+            if (emailChanged) {
+                setIsEmailInfoModalOpen(true);
+            } else {
+                alert('Profile updated successfully!');
+                onBack(); 
+            }
+        } catch (err: any) {
+            const errorMessage = err?.message || err;
+            if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('display name is already taken')) {
+                setDisplayNameError(errorMessage);
+            } else {
+                setError(typeof errorMessage === 'string' ? errorMessage : 'An unexpected error occurred. Please try again.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleDeleteConfirm = () => {
         onDeleteAccount();
         setIsDeleteConfirmOpen(false);
+    };
+    
+    const handlePasswordResetConfirm = async () => {
+        setIsResetConfirmOpen(false);
+        try {
+            await resetPassword(user.email);
+            setIsResetSuccessModalOpen(true);
+        } catch (error: any) {
+            console.error("Password reset failed:", error);
+            if (error.code === 'auth/user-not-found') {
+                 alert('Failed to send password reset email: No account was found with this email address.');
+            } else if (error.code === 'auth/invalid-email') {
+                alert('Failed to send password reset email: The email address is not valid.');
+            } else {
+                 alert('Failed to send password reset email. Please try again later.');
+            }
+        }
     };
 
     return (
@@ -132,23 +160,21 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                         </div>
                     </div>
 
-                    <InputField 
-                        label="Display Name"
-                        id="displayName"
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="YourFisherName"
-                    />
-                    <InputField 
-                        label="Email (cannot be changed here)"
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        disabled={true}
-                    />
+                    <div>
+                        <InputField 
+                            label="Display Name"
+                            id="displayName"
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => {
+                                setDisplayName(e.target.value);
+                                setDisplayNameError(null);
+                            }}
+                            placeholder="YourFisherName"
+                        />
+                        {displayNameError && <p className="text-red-400 text-sm mt-1">{displayNameError}</p>}
+                    </div>
+
                     <SelectField
                         label="Country"
                         id="country"
@@ -157,26 +183,27 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                     >
                         {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </SelectField>
-                    <InputField 
-                        label="New Password (not implemented)"
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        disabled={true}
-                    />
-                    <InputField 
-                        label="Confirm New Password (not implemented)"
-                        id="confirmPassword"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        disabled={true}
-                    />
+                    <div>
+                        <InputField 
+                            label="Email"
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                        />
+                    </div>
+                    
+                    {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-                    <div className="pt-4">
+                    <div className="pt-4 space-y-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setIsResetConfirmOpen(true)}
+                        >
+                            Reset Password
+                        </Button>
                         <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Changes'}</Button>
                     </div>
                 </form>
@@ -201,6 +228,38 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                 confirmText="Delete"
                 cancelText="Cancel"
                 confirmVariant="danger"
+            />
+            
+            <ConfirmationModal
+                isOpen={isResetConfirmOpen}
+                title="Reset Password"
+                message={`An email with instructions to reset your password will be sent to ${user.email}. Do you want to continue?`}
+                onConfirm={handlePasswordResetConfirm}
+                onCancel={() => setIsResetConfirmOpen(false)}
+                confirmText="Send Email"
+                cancelText="Cancel"
+                confirmVariant="primary"
+            />
+
+            <ConfirmationModal
+                isOpen={isResetSuccessModalOpen}
+                title="Email Sent"
+                message={`An email with instructions to reset your password has been sent to ${user.email}. Please check your inbox and spam/junk folder.`}
+                onConfirm={() => setIsResetSuccessModalOpen(false)}
+                confirmText="OK"
+                confirmVariant="primary"
+            />
+
+            <ConfirmationModal
+                isOpen={isEmailInfoModalOpen}
+                title="Check Your Email"
+                message={`A verification link has been sent to ${email}. Please click the link in the email to finalize the change.`}
+                onConfirm={() => {
+                    setIsEmailInfoModalOpen(false);
+                    onBack();
+                }}
+                confirmText="OK"
+                confirmVariant="primary"
             />
         </div>
     );
