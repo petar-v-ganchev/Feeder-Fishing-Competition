@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant, VenueCondition, GameItem } from '../types';
 import {
@@ -29,8 +28,15 @@ interface MatchUIScreenProps {
   onMatchEnd: (result: MatchResult) => void;
 }
 
+interface CatchEvent {
+    id: string;
+    weight: number;
+    isBigFish: boolean;
+    expiresAt: number;
+}
+
 const MATCH_DURATION = 90; // 90 seconds
-const SIMULATION_TICK_RATE = 5000; // 5 seconds
+const SIMULATION_TICK_RATE = 1000; // 1 second updates for smoother timer logic
 
 // Helper to get a random element from an array
 const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -100,9 +106,11 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const [venueCondition, setVenueCondition] = useState<VenueCondition | null>(null);
     const [liveFeedMessage, setLiveFeedMessage] = useState<string | null>(null);
     const [playerPositionHistory, setPlayerPositionHistory] = useState<number[]>([]);
-    const [catchEvents, setCatchEvents] = useState<Map<string, { weight: number; isBigFish: boolean }>>(new Map());
+    const [catchEvents, setCatchEvents] = useState<Map<string, CatchEvent>>(new Map());
     
     const participantsRef = useRef(participants);
+    const catchEventsRef = useRef<Map<string, CatchEvent>>(new Map());
+    const biteTimers = useRef<Map<string, number>>(new Map());
     const botsContainerRef = useRef<HTMLDivElement>(null);
     const botColumnRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
@@ -195,17 +203,31 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             } while (usedNames.has(botName));
             usedNames.add(botName);
 
+            // Start bots with the optimal loadout, but randomize 3 parameters so they aren't perfect.
+            // This ensures they don't get a perfect 8/8 score and 5s catch time instantly.
+            const botLoadout = { ...optimalLoadout };
+            if (Math.random() < 0.7) botLoadout.hookSize = getRandom(MOCK_HOOK_SIZES);
+            if (Math.random() < 0.7) botLoadout.castingDistance = getRandom(MOCK_CASTING_DISTANCES);
+            if (Math.random() < 0.7) botLoadout.bait = getRandom(MOCK_BAITS);
+
             return {
                 id: `bot_${i}`,
                 name: botName,
                 isBot: true,
-                loadout: optimalLoadout, // Bots start with a very good loadout
+                loadout: botLoadout, 
                 totalWeight: 0,
                 catchStreak: 0,
             };
         });
         
-        setParticipants([player, ...bots]);
+        const allParticipants = [player, ...bots];
+
+        // Initialize bite timers with random staggered starts between 2s and 10s
+        allParticipants.forEach(p => {
+             biteTimers.current.set(p.id, 2 + Math.random() * 8);
+        });
+
+        setParticipants(allParticipants);
     }, [user, playerLoadout, venueCondition, optimalLoadout]);
 
     // Simulation tick effect
@@ -216,8 +238,16 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             const currentParticipants = participantsRef.current;
             if (currentParticipants.length === 0) return;
 
+            // Manage active catch animations
+            const now = Date.now();
+            const activeEvents = catchEventsRef.current;
+            for (const [key, event] of activeEvents.entries()) {
+                if (now > event.expiresAt) {
+                    activeEvents.delete(key);
+                }
+            }
+
             let newLiveFeedMessage = '';
-            const newCatchEvents = new Map<string, { weight: number; isBigFish: boolean }>();
             
             const sortedBefore = [...currentParticipants].sort((a, b) => b.totalWeight - a.totalWeight);
             const leaderBefore = sortedBefore[0];
@@ -228,7 +258,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
                 // BOT AI: Occasionally change parameters
                 if (p.isBot) {
-                    const BOT_ADAPT_CHANCE = 0.15; // 15% chance to adapt
+                    const BOT_ADAPT_CHANCE = 0.05; // 5% chance per second to adapt
                     if (Math.random() < BOT_ADAPT_CHANCE) {
                         const paramToChange = getRandom(Object.keys(currentLoadout).filter(k => k !== 'rod') as Array<keyof Loadout>);
                         
@@ -252,6 +282,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     }
                 }
                 
+                // Calculate match score (0 to 8)
                 const score = Object.keys(currentLoadout).reduce((acc, key) => {
                     if (currentLoadout[key as keyof Loadout] === optimalLoadout[key as keyof Loadout]) {
                         return acc + 1;
@@ -259,28 +290,50 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     return acc;
                 }, 0);
 
-                // Higher score = higher chance to catch a fish
-                const catchChance = p.isBot ? 0.65 : score / Object.keys(currentLoadout).length * 0.8;
-                const didCatch = Math.random() < catchChance;
+                const totalParams = 8;
+                const scoreRatio = score / totalParams; // 0.0 to 1.0
+
+                // Decrement bite timer
+                let timer = biteTimers.current.get(p.id) || 10;
+                timer -= (SIMULATION_TICK_RATE / 1000); // Reduce by tick rate in seconds
                 
                 let weightGained = 0;
                 let newCatchStreak = p.catchStreak;
 
-                if (didCatch) {
+                if (timer <= 0) {
+                    // CATCH EVENT
                     const fish = getRandom(MOCK_FISH_SPECIES);
                     const weight = parseFloat((fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight)).toFixed(2));
                     weightGained = weight;
                     newCatchStreak += 1;
                     
                     const isBigFish = weight > fish.maxWeight * 0.9;
-                    newCatchEvents.set(p.id, { weight, isBigFish });
+                    
+                    // Add new catch event with expiration
+                    const eventId = `${p.id}_${now}`;
+                    activeEvents.set(p.id, { 
+                        id: eventId, 
+                        weight, 
+                        isBigFish, 
+                        expiresAt: now + 2500 // Animation duration 2.5s
+                    });
                     
                     if (isBigFish) { // Top 10% of its species weight
                         newLiveFeedMessage = `🚨 ${p.name} just landed a huge ${fish.name}!`;
                     }
-                } else {
-                     newCatchStreak = 0;
-                }
+
+                    // Reset Timer based on Score
+                    // Perfect Loadout (Score 8/8) -> ~5 seconds
+                    // Worst Loadout (Score 0/8) -> ~50 seconds
+                    // Linear interpolation: Wait = 50 - (Ratio * 45)
+                    const baseTime = 50 - (scoreRatio * 45);
+                    
+                    // Add variance (+/- 10%) so it feels natural
+                    const variance = 0.9 + (Math.random() * 0.2); 
+                    timer = baseTime * variance;
+                } 
+
+                biteTimers.current.set(p.id, timer);
 
                 return {
                     ...p,
@@ -297,7 +350,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             // Check for new leader, if it's not the same as before
             if (leaderAfter && leaderBefore && leaderAfter.id !== leaderBefore.id && leaderAfter.totalWeight > 0) {
                 newLiveFeedMessage = `👑 ${leaderAfter.name} takes the lead!`;
-            } else { // Only check this if there's no new leader, to avoid overwriting message
+            } else if (!newLiveFeedMessage) { // Only check this if no other message
                 // Check for players entering top 3
                 const newTop3Players = sortedAfter.slice(0, 3).filter(p => !top3Before.has(p.id) && p.totalWeight > 0);
                 if (newTop3Players.length > 0) {
@@ -307,8 +360,8 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             }
 
             // --- TACTICAL HINT LOGIC ---
-            // Only generate a hint if no other major message was generated and with a certain probability.
-            const HINT_CHANCE = 0.35; // 35% chance per tick
+            // Reduced chance because tick rate is higher now (1s vs 5s)
+            const HINT_CHANCE = 0.05; // 5% chance per tick
             if (!newLiveFeedMessage && Math.random() < HINT_CHANCE) {
                 const player = updatedParticipants.find(p => !p.isBot);
                 const playerRank = sortedAfter.findIndex(p => !p.isBot) + 1;
@@ -348,7 +401,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
             const playerRankAfter = sortedAfter.findIndex(p => !p.isBot) + 1;
 
-            setCatchEvents(newCatchEvents);
+            setCatchEvents(new Map(activeEvents));
             setParticipants(updatedParticipants);
             if (playerRankAfter > 0) {
                 setPlayerPositionHistory(prev => [...prev, playerRankAfter]);
@@ -463,11 +516,13 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
     const CatchAnimation: React.FC<{ weight: number; isBigFish: boolean }> = ({ weight, isBigFish }) => {
         return (
-            <div 
-                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 rounded-lg pointer-events-none z-10 animate-catch-float
-                            ${isBigFish ? 'bg-yellow-500/80 text-white shadow-lg shadow-yellow-500/50' : 'bg-green-500/80 text-white shadow-lg shadow-green-500/50'}`}
-            >
-                <span className="font-bold text-lg whitespace-nowrap">+{weight.toFixed(2)}kg</span>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none w-0 h-0 flex items-center justify-center">
+                <div 
+                    className={`p-2 rounded-lg animate-catch-float whitespace-nowrap
+                                ${isBigFish ? 'bg-yellow-500/80 text-white shadow-lg shadow-yellow-500/50' : 'bg-green-500/80 text-white shadow-lg shadow-green-500/50'}`}
+                >
+                    <span className="font-bold text-lg">+{weight.toFixed(2)}kg</span>
+                </div>
             </div>
         );
     };
@@ -548,7 +603,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 <div className="flex-shrink-0 p-2 pr-0">
                     <div className={playerColumnClasses}>
                         {renderColumnContent(player)}
-                        {playerCatchEvent && <CatchAnimation key={`${player.id}-${timeLeft}`} {...playerCatchEvent} />}
+                        {playerCatchEvent && <CatchAnimation key={playerCatchEvent.id} {...playerCatchEvent} />}
                     </div>
                 </div>
 
@@ -572,7 +627,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                     }}
                                     className={botColumnClasses}>
                                     {renderColumnContent(p)}
-                                    {botCatchEvent && <CatchAnimation key={`${p.id}-${timeLeft}`} {...botCatchEvent} />}
+                                    {botCatchEvent && <CatchAnimation key={botCatchEvent.id} {...botCatchEvent} />}
                                 </div>
                             );
                         })}

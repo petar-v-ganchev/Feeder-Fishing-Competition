@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
@@ -33,6 +34,15 @@ export const LoginScreen: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    // Save or remove email from localStorage based on user preference
+    if (!isRegistering) {
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+    }
 
     try {
       if (isRegistering) {

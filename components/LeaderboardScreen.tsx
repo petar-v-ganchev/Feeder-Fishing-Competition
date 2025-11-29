@@ -14,7 +14,7 @@ const TIME_SCOPES: TimeScope[] = ['Daily', 'Weekly', 'Monthly', 'All-Time'];
 
 export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, user }) => {
   const [countryScope, setCountryScope] = useState<CountryScope>('Country');
-  const [timeScope, setTimeScope] = useState<TimeScope>('Weekly');
+  const [timeScope, setTimeScope] = useState<TimeScope>('All-Time');
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

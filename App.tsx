@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth } from './services/firebase';
@@ -116,9 +117,6 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = async () => {
-    if (user?.email) {
-      localStorage.setItem('rememberedEmail', user.email);
-    }
     await signOut(auth);
   };
 
