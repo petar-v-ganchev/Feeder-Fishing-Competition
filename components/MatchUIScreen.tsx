@@ -43,8 +43,8 @@ const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length
 
 const LiveFeedTicker: React.FC<{ message: string | null }> = ({ message }) => {
     return (
-        <div className="flex items-baseline gap-2">
-            <p className="text-xs text-gray-400 uppercase tracking-wider flex-shrink-0">LIVE FEED:</p>
+        <div className="flex items-center gap-2 h-10 px-2 bg-black/20 rounded mb-1">
+            <p className="text-xs text-gray-400 uppercase tracking-wider flex-shrink-0 font-semibold">LIVE FEED:</p>
             <p className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${message ? 'text-yellow-300' : 'text-yellow-300/50'}`}>
                 {message || 'Waiting for match events...'}
             </p>
@@ -66,7 +66,7 @@ const StandingsVisualizer: React.FC<StandingsVisualizerProps> = ({ participants,
     }, [participants]);
 
     return (
-        <div className="w-full h-8 bg-gray-900/50 rounded-md flex items-end justify-between p-1 gap-1 mt-3" aria-label="Real-time match standings visualization">
+        <div className="w-full h-20 bg-gray-900/50 rounded-md flex items-end justify-between p-0.5 gap-0.5 mt-1" aria-label="Real-time match standings visualization">
             {participants.map(p => {
                 const heightPercentage = (p.totalWeight / maxWeight) * 100;
                 const isPlayer = !p.isBot;
@@ -95,6 +95,19 @@ const StandingsVisualizer: React.FC<StandingsVisualizerProps> = ({ participants,
                     ></div>
                 );
             })}
+        </div>
+    );
+};
+
+const CatchAnimation: React.FC<{ weight: number; isBigFish: boolean }> = ({ weight, isBigFish }) => {
+    return (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none w-0 h-0 flex items-center justify-center">
+            <div 
+                className={`p-2 rounded-lg animate-catch-float whitespace-nowrap
+                            ${isBigFish ? 'bg-yellow-500/80 text-white shadow-lg shadow-yellow-500/50' : 'bg-green-500/80 text-white shadow-lg shadow-green-500/50'}`}
+            >
+                <span className="font-bold text-lg">+{weight.toFixed(2)}kg</span>
+            </div>
         </div>
     );
 };
@@ -514,48 +527,50 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const sortedParticipants = [...participants].sort((a, b) => b.totalWeight - a.totalWeight);
     const leaderId = sortedParticipants[0]?.totalWeight > 0 ? sortedParticipants[0]?.id : null;
 
-    const CatchAnimation: React.FC<{ weight: number; isBigFish: boolean }> = ({ weight, isBigFish }) => {
-        return (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none w-0 h-0 flex items-center justify-center">
-                <div 
-                    className={`p-2 rounded-lg animate-catch-float whitespace-nowrap
-                                ${isBigFish ? 'bg-yellow-500/80 text-white shadow-lg shadow-yellow-500/50' : 'bg-green-500/80 text-white shadow-lg shadow-green-500/50'}`}
-                >
-                    <span className="font-bold text-lg">+{weight.toFixed(2)}kg</span>
-                </div>
-            </div>
-        );
-    };
-
     const renderColumnContent = (p: MatchParticipant) => {
         const isPlayer = !p.isBot;
         const isLeader = p.id === leaderId;
+        
+        // Very compact heights to completely eliminate scrollbars
+        const HEADER_HEIGHT = "h-14"; 
+        const ROW_HEIGHT = "h-[45px]"; 
+
         return (
             <>
-                <div className="text-center border-b pb-2 mb-2 flex-shrink-0" style={{borderColor: isPlayer ? 'rgba(59, 130, 246, 0.5)' : 'rgba(55, 65, 81, 1)'}}>
-                    <p className="font-bold text-lg leading-tight flex items-center justify-center">
-                       {isLeader && <span title="Current Leader" className="text-yellow-400 mr-1">👑</span>}
-                       <span className="truncate">{p.name}</span>
-                    </p>
-                    <p className={`text-xl font-bold ${isPlayer ? 'text-blue-300' : ''}`}>
+                <div className={`${HEADER_HEIGHT} text-center border-b pb-0.5 mb-0.5 flex-shrink-0 flex flex-col justify-center`} style={{borderColor: isPlayer ? 'rgba(59, 130, 246, 0.5)' : 'rgba(55, 65, 81, 1)'}}>
+                    <div className="h-5 flex items-center justify-center">
+                        <p className="font-bold text-xs leading-tight flex items-center justify-center max-w-full px-1">
+                           {isLeader && <span title="Current Leader" className="text-yellow-400 mr-1 text-sm">👑</span>}
+                           <span className="truncate block">{p.name}</span>
+                        </p>
+                    </div>
+                    <p className={`text-base font-bold mt-0.5 ${isPlayer ? 'text-blue-300' : ''}`}>
                         {p.totalWeight === 0 ? 'Blank' : `${p.totalWeight.toFixed(2)} kg`}
                     </p>
                 </div>
 
-                <div className="overflow-y-auto flex-grow pr-1">
+                <div className="overflow-y-auto flex-grow pr-1 custom-scrollbar">
                     {parameters.map(param => (
-                        <div key={param.key} className="mb-2 text-left">
-                            <label className="text-xs text-gray-400 block truncate">{param.label}</label>
+                        <div key={param.key} className={`${ROW_HEIGHT} flex flex-col justify-end pb-0.5 border-b border-gray-700/30`}>
+                            <label className="text-[9px] text-gray-500 block truncate leading-none uppercase tracking-wide">{param.label}</label>
                             {isPlayer ? (
                                 <select
                                     value={player.loadout[param.key as keyof Loadout]}
                                     onChange={(e) => handleLoadoutChange(param.key as keyof Loadout, e.target.value)}
-                                    className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-base focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full h-7 pl-1 pr-4 bg-gray-700 border border-gray-600 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239CA3AF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 0.25rem center',
+                                        backgroundSize: '0.65em auto'
+                                    }}
                                 >
                                     {param.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                 </select>
                             ) : (
-                                <p className="w-full p-1 bg-gray-900/50 border border-gray-600 rounded truncate text-base">{p.loadout[param.key as keyof Loadout]}</p>
+                                <div className="w-full h-7 px-1 flex items-center bg-gray-900/50 border border-gray-600 rounded">
+                                     <span className="truncate text-[11px] text-gray-300">{p.loadout[param.key as keyof Loadout]}</span>
+                                </div>
                             )}
                         </div>
                     ))}
@@ -570,29 +585,29 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     }`;
 
     return (
-        <div className="p-2 md:p-4 max-w-4xl mx-auto flex flex-col h-screen">
-            <header className="mb-2 p-3 bg-gray-800/50 rounded-lg">
-                <div className="flex justify-between items-center w-full mb-3 text-center">
+        <div className="p-2 max-w-4xl mx-auto flex flex-col h-screen overflow-hidden">
+            <header className="mb-1 p-1 bg-gray-800/50 rounded-lg flex-shrink-0">
+                <div className="flex justify-between items-center w-full mb-1 text-center">
                     <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Position</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Position</p>
                         <p className="text-sm font-bold">
                            {allWeightsZero ? '-' : (playerRank > 0 ? `${playerRank} / ${participants.length}` : 'N/A')}
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Trend</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Trend</p>
                         <p className={`text-sm font-bold flex items-center justify-center gap-1 ${positionTrend.color}`}>
                             <span>{positionTrend.icon}</span>
                             <span>{positionTrend.text}</span>
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Time Left</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Time Left</p>
                         <p className="text-sm font-bold">{formatTime(timeLeft)}</p>
                     </div>
                 </div>
 
-                <div className="border-t border-gray-700 pt-3">
+                <div className="border-t border-gray-700 pt-1">
                     <LiveFeedTicker message={liveFeedMessage} />
                     <StandingsVisualizer participants={participants} leaderId={leaderId} onParticipantSelect={handleParticipantSelect} />
                 </div>
@@ -600,7 +615,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
             <div className="flex-grow flex overflow-hidden">
                 {/* Player Column (Fixed) */}
-                <div className="flex-shrink-0 p-2 pr-0">
+                <div className="flex-shrink-0 p-1 pr-0 h-full">
                     <div className={playerColumnClasses}>
                         {renderColumnContent(player)}
                         {playerCatchEvent && <CatchAnimation key={playerCatchEvent.id} {...playerCatchEvent} />}
@@ -609,10 +624,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
                 {/* Bots Container (Scrollable) */}
                 <div ref={botsContainerRef} className="flex-grow overflow-x-auto whitespace-nowrap snap-x snap-mandatory scroll-smooth scroll-pl-2">
-                    <div className="inline-flex space-x-2 h-full p-2">
+                    <div className="inline-flex space-x-2 h-full p-1">
                         {bots.map((p) => {
                             const botCatchEvent = catchEvents.get(p.id);
-                            const botColumnClasses = `w-40 flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border-2 transition-all duration-300 snap-start relative ${
+                            const botColumnClasses = `w-40 h-full flex-shrink-0 rounded-lg p-2 flex flex-col bg-gray-800 border-2 transition-all duration-300 snap-start relative ${
                                 botCatchEvent ? (botCatchEvent.isBigFish ? 'border-yellow-400' : 'border-green-400') : 'border-gray-700'
                             }`;
                             return (
