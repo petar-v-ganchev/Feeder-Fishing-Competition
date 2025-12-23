@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Screen } from '../types';
 
@@ -19,7 +18,7 @@ export const MatchmakingScreen: React.FC<MatchmakingScreenProps> = ({ onMatchFou
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <h1 className="text-3xl font-bold mb-4 animate-pulse">Finding Opponents...</h1>
-      <p className="text-gray-400">Preparing the venue.</p>
+      <p className="text-gray-400">Preparing The Venue.</p>
     </div>
   );
 };

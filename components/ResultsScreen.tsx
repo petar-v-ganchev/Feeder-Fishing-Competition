@@ -36,7 +36,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
             <p className="text-yellow-400 text-lg font-semibold">+{result.eurosEarned} Euro</p>
         </Card>
 
-        <Button onClick={onContinue}>Join Another Competition</Button>
+        <Button onClick={onContinue}>Go Back To Main Menu</Button>
       </div>
     </div>
   );

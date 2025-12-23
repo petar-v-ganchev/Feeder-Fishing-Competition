@@ -1,5 +1,3 @@
-
-
 export enum Screen {
   Login,
   MainMenu,
@@ -39,10 +37,13 @@ export interface GameItem {
 
 export interface Loadout {
   rod: string;
+  reel: string;
+  line: string;
+  hook: string;
+  feeder: string;
   bait: string;
   groundbait: string;
-  hookSize: string;
-  feederType: string;
+  additive: string;
   feederTip: string;
   castingDistance: string;
   castingInterval: string;
@@ -72,6 +73,7 @@ export interface MatchParticipant {
   loadout: Loadout;
   totalWeight: number;
   catchStreak: number;
+  lastCatchTime: number; // For trend tracking
 }
 
 export type VenueCondition = 'Clear Water' | 'Murky Water' | 'Warm Weather' | 'Cool Weather';

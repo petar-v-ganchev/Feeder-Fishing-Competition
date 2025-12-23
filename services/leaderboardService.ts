@@ -1,3 +1,4 @@
+
 import { collection, query, where, getDocs, orderBy, limit, increment, doc, writeBatch, serverTimestamp, documentId } from 'firebase/firestore';
 import { db } from './firebase';
 import type { User, MatchHistory } from '../types';
@@ -182,7 +183,8 @@ export async function updatePlayerStats(
     userId: string,
     isWin: boolean,
     rank: number,
-    country: string
+    country: string,
+    eurosEarned: number
 ): Promise<void> {
     const batch = writeBatch(db);
 
@@ -190,7 +192,8 @@ export async function updatePlayerStats(
     const userRef = doc(db, 'users', userId);
     const statsUpdate = {
         'stats.matchesPlayed': increment(1),
-        'stats.wins': increment(isWin ? 1 : 0)
+        'stats.wins': increment(isWin ? 1 : 0),
+        'euros': increment(eurosEarned)
     };
     batch.update(userRef, statsUpdate);
 

@@ -17,8 +17,10 @@ export async function getMatchHint(playerLoadout: Loadout, condition: VenueCondi
         - Rod: ${playerLoadout.rod}
         - Bait: ${playerLoadout.bait}
         - Groundbait: ${playerLoadout.groundbait}
-        - Hook Size: ${playerLoadout.hookSize}
-        - Feeder Type: ${playerLoadout.feederType}
+        // Fixed: Accessing 'hook' property instead of non-existent 'hookSize'
+        - Hook Size: ${playerLoadout.hook}
+        // Fixed: Accessing 'feeder' property instead of non-existent 'feederType'
+        - Feeder Type: ${playerLoadout.feeder}
         - Feeder Tip: ${playerLoadout.feederTip}
         - Casting Distance: ${playerLoadout.castingDistance}
         - Casting Interval: ${playerLoadout.castingInterval}
@@ -29,11 +31,13 @@ export async function getMatchHint(playerLoadout: Loadout, condition: VenueCondi
         Example for 'Murky Water': "A fishmeal groundbait might draw in more bites in this cloudy water."
         `;
         
+        // Use gemini-3-flash-preview as recommended for Basic Text Tasks
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
         });
 
+        // The .text property is used correctly here.
         return response.text.trim();
 
     } catch (error) {

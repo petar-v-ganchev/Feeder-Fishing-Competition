@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from './Button';
 import { Card } from './Card';
@@ -35,11 +34,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         <p className="text-gray-300 mb-6">{message}</p>
         <div className="flex justify-end gap-4">
           {onCancel && (
-            <Button variant="secondary" onClick={onCancel} className="!w-auto !py-2 px-6">
+            <Button variant="secondary" onClick={onCancel} className="!w-auto px-6">
               {cancelText}
             </Button>
           )}
-          <Button variant={confirmVariant} onClick={onConfirm} className="!w-auto !py-2 px-6">
+          <Button variant={confirmVariant} onClick={onConfirm} className="!w-auto px-6">
             {confirmText}
           </Button>
         </div>

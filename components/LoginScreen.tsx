@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
@@ -92,13 +91,13 @@ export const LoginScreen: React.FC = () => {
         <div className="flex border-b border-gray-700 mb-6">
           <button
             onClick={() => { setIsRegistering(false); setError(null); }}
-            className={`flex-1 py-2 text-center font-semibold transition-colors ${!isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
+            className={`flex-1 h-11 text-center font-bold text-sm transition-colors ${!isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
           >
             Login
           </button>
           <button
             onClick={() => { setIsRegistering(true); setError(null); }}
-            className={`flex-1 py-2 text-center font-semibold transition-colors ${isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
+            className={`flex-1 h-11 text-center font-bold text-sm transition-colors ${isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
           >
             Register
           </button>
@@ -135,7 +134,7 @@ export const LoginScreen: React.FC = () => {
                 className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-300 cursor-pointer">
-                Remember me
+                Remember Me
               </label>
             </div>
           )}

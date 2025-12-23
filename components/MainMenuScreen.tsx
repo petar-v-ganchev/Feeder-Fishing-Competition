@@ -30,7 +30,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
     <div className="p-4 max-w-2xl mx-auto flex flex-col justify-center min-h-screen">
       <header className="flex justify-between items-center mb-6 pt-4">
         <div>
-          <h1 className="text-2xl font-bold">Welcome, {user.displayName}!</h1>
+          <h1 className="text-2xl font-bold">Let's Go Fishing, {user.displayName}!</h1>
         </div>
       </header>
       
@@ -46,7 +46,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
               <p className="text-sm text-gray-400">Progress: {dailyChallenge.progress}/{dailyChallenge.targetCount}</p>
             </div>
             {dailyChallenge.isCompleted && !dailyChallenge.isClaimed && (
-                <Button onClick={onClaimReward} className="!w-auto !py-2 !px-4">Claim Reward</Button>
+                <Button onClick={onClaimReward} className="!w-auto px-6">Claim Reward</Button>
             )}
             {dailyChallenge.isClaimed && (
                  <p className="text-green-400 font-semibold">Completed!</p>

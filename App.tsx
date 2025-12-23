@@ -148,7 +148,8 @@ const App: React.FC = () => {
             }
         }
         
-        await updatePlayerStats(user.id, isWin, playerRank, user.country);
+        // Update stats and Euros in Firestore atomically
+        await updatePlayerStats(user.id, isWin, playerRank, user.country, result.eurosEarned);
 
         const newStats = { ...user.stats };
         newStats.matchesPlayed += 1;
@@ -198,8 +199,13 @@ const App: React.FC = () => {
       inventory: [...user.inventory, itemToBuy],
     };
     
-    const { id, ...dataToUpdate } = updatedUser;
-    await updateUserProfile(id, dataToUpdate);
+    // Only update specific fields to avoid transaction overhead in updateUserProfile.
+    // This ensures inventory/euros updates are fast and reliable.
+    await updateUserProfile(user.id, {
+        euros: updatedUser.euros,
+        inventory: updatedUser.inventory
+    });
+
     setUser(updatedUser);
     setInfoModal({ title: "Purchase Successful", message: `Successfully purchased ${itemToBuy.name}!` });
   };
