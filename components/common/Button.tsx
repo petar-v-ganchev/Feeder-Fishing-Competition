@@ -1,16 +1,17 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
 }
 
 export const Button: React.FC<ButtonProps> = ({ children, className, variant = 'primary', ...props }) => {
-  const baseClasses = 'w-full h-11 flex items-center justify-center text-sm text-white font-bold px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-75 transition-transform transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
-
+  const baseClasses = 'w-full h-12 flex items-center justify-center text-sm font-bold rounded-medium transition-all active:translate-y-[1px] disabled:opacity-50 disabled:pointer-events-none px-4';
+  
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500',
-    danger: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+    primary: 'bg-primary text-white shadow-sm hover:opacity-90',
+    secondary: 'bg-white text-primary border border-outline hover:bg-slate-50',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+    ghost: 'bg-transparent text-primary hover:bg-slate-100',
   };
 
   return (

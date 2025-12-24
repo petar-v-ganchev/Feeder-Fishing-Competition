@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User as FirebaseAuthUser } from 'firebase/auth';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
@@ -6,6 +6,7 @@ import { MOCK_COUNTRIES } from '../constants';
 import { completeRegistration } from '../services/userService';
 import type { User } from '../types';
 import { useTranslation } from '../i18n/LanguageContext';
+import { languages, LanguageCode } from '../i18n/translations';
 
 interface CreateProfileScreenProps {
   firebaseUser: FirebaseAuthUser;
@@ -13,75 +14,102 @@ interface CreateProfileScreenProps {
 }
 
 export const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ firebaseUser, onProfileCreated }) => {
-  const { t } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const [displayName, setDisplayName] = useState('');
   const [country, setCountry] = useState(MOCK_COUNTRIES[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) setError(null);
+  }, [displayName, country]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
-      if (!displayName.trim() || !country) {
+      const trimmedName = displayName.trim();
+      if (!trimmedName || !country) {
         throw new Error(t('error.fill_all'));
       }
+      if (trimmedName.length < 3) {
+        throw new Error(t('error.display_name_length'));
+      }
+      
       const newUser = await completeRegistration({
         uid: firebaseUser.uid,
         email: firebaseUser.email!,
-        displayName: displayName.trim(),
+        displayName: trimmedName,
         country,
+        language: locale,
       });
       onProfileCreated(newUser);
     } catch (err: any) {
+      console.error(err);
       if (err.message.includes("display name is already taken")) {
         setError(t('error.display_name_taken'));
       } else if (err.message.includes("between 3 and 15 characters")) {
         setError(t('error.display_name_length'));
-      } else if (err.message === t('error.fill_all')) {
-        setError(t('error.fill_all'));
       } else {
-        setError(t('error.generic'));
+        setError(err.message || t('error.generic'));
       }
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-900">
-      <Card className="w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-6">{t('create.title')}</h1>
-        <p className="text-center text-gray-400 mb-6">{t('create.subtitle')}</p>
-        
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="displayName">{t('edit.display_name')}</label>
+    <div className="flex flex-col h-full p-8 justify-center gap-6 bg-white">
+      <div className="text-center border-b border-outline pb-4">
+        <h1 className="text-xl font-bold text-primary tracking-tight">{t('create.title')}</h1>
+        <p className="text-[10px] font-bold text-onSurfaceVariant opacity-70 tracking-widest mt-1">{t('create.subtitle')}</p>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('edit.display_name')}</p>
             <input
-                id="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="YourFisherName"
-                minLength={3}
+                className={`w-full bg-slate-50 border ${error && !displayName ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
+                placeholder={t('create.placeholder.handle')}
                 maxLength={15}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="country">{t('edit.country')}</label>
-            <select id="country" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('edit.country')}</p>
+            <select 
+                value={country} 
+                onChange={(e) => setCountry(e.target.value)} 
+                className="w-full bg-slate-50 border border-outline p-3 rounded-small text-sm outline-none"
+            >
               {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('common.language')}</p>
+            <select 
+                value={locale} 
+                onChange={(e) => setLocale(e.target.value as LanguageCode)} 
+                className="w-full bg-slate-50 border border-outline p-3 rounded-small text-sm outline-none"
+            >
+              {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+            </select>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left mt-2">
+            <span className="leading-none py-1">{error}</span>
           </div>
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-          <div className="pt-2">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? t('login.status.saving') : t('create.btn')}
-            </Button>
-          </div>
-        </form>
-      </Card>
+        )}
+        
+        <Button type="submit" className="mt-4" disabled={isLoading}>
+          {isLoading ? '...' : t('create.btn')}
+        </Button>
+      </form>
     </div>
   );
 };

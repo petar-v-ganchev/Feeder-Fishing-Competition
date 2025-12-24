@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
-import { Card } from './common/Card';
 import { loginUser } from '../services/userService';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -10,66 +9,53 @@ import { languages, LanguageCode } from '../i18n/translations';
 export const LoginScreen: React.FC = () => {
   const { t, locale, setLocale } = useTranslation();
   const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('lastLoginEmail') || '');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rememberMe, setRememberMe] = useState(true);
 
+  // Clear error when user changes inputs
   useEffect(() => {
-    const registrationError = sessionStorage.getItem('registrationError');
-    if (registrationError) {
-      setError(registrationError);
-      setIsRegistering(true);
-      sessionStorage.removeItem('registrationError');
+    if (error) setError(null);
+  }, [email, password, isRegistering]);
+
+  const validate = () => {
+    if (!email.trim() || !password.trim()) {
+      setError(t('error.fill_all'));
+      return false;
     }
-    
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    if (savedEmail) {
-      setEmail(savedEmail);
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError(t('error.invalid_email'));
+      return false;
     }
-  }, []);
+    if (password.length < 6) {
+      setError(t('error.password_length'));
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    // Controlled localized validation (prevents browser popups)
-    if (!email.trim() || !password.trim()) {
-      setError(t('error.fill_all'));
-      return;
-    }
+    if (!validate()) return;
 
     setIsLoading(true);
-
-    if (!isRegistering) {
-      if (rememberMe) {
-        localStorage.setItem('rememberedEmail', email);
-      } else {
-        localStorage.removeItem('rememberedEmail');
-      }
-    }
-
+    setError(null);
     try {
       if (isRegistering) {
         await createUserWithEmailAndPassword(auth, email, password);
+        localStorage.setItem('lastLoginEmail', email);
       } else {
         await loginUser({ email, password, rememberMe });
+        localStorage.setItem('lastLoginEmail', email);
       }
     } catch (err: any) {
-        const errorCode = err.code;
-        const errorMessage = (err.message || '').toLowerCase();
-
-        if (errorCode === 'auth/email-already-in-use' || errorMessage.includes('email-already-in-use')) {
-          setError(t('error.email_in_use'));
-        } else if (
-            errorCode === 'auth/invalid-credential' || 
-            errorCode === 'auth/wrong-password' ||
-            errorCode === 'auth/invalid-login-credentials' ||
-            errorMessage.includes('invalid-credential') ||
-            errorMessage.includes('invalid login credentials')
-        ) {
+        console.error(err);
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
           setError(t('error.invalid_login'));
+        } else if (err.code === 'auth/email-already-in-use') {
+          setError(t('error.email_in_use'));
         } else {
           setError(t('error.generic'));
         }
@@ -78,98 +64,86 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-900 relative">
-      <div className="absolute top-8 left-0 right-0 flex justify-center px-4 z-20">
-        <div className="relative">
-          <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as LanguageCode)}
-            className="bg-gray-800 border border-gray-700 text-gray-300 text-xs font-bold rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-gray-750 transition-colors shadow-2xl"
-          >
-            {languages.map(l => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
+    <div className="flex flex-col min-h-screen p-8 justify-center bg-white">
+      <div className="absolute top-6 right-6">
+        <select 
+          value={locale} 
+          onChange={(e) => setLocale(e.target.value as LanguageCode)}
+          className="bg-slate-50 text-onSurfaceVariant border border-outline text-xs p-2 rounded-small outline-none"
+        >
+          {languages.map(l => (
+            <option key={l.code} value={l.code}>{l.name}</option>
+          ))}
+        </select>
       </div>
 
-      <Card className="w-full max-w-md shadow-2xl border-gray-700/50">
-        <h1 className="text-3xl font-bold text-center mb-2 text-blue-400">{t('login.title')}</h1>
-        <h2 className="text-xl font-bold text-center mb-6">{t('login.subtitle')}</h2>
-        
-        <div className="flex border-b border-gray-700 mb-6">
-          <button
-            type="button"
-            onClick={() => { setIsRegistering(false); setError(null); }}
-            className={`flex-1 h-11 text-center font-bold text-sm transition-colors ${!isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
-          >
-            {t('login.tab.login')}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsRegistering(true); setError(null); }}
-            className={`flex-1 h-11 text-center font-bold text-sm transition-colors ${isRegistering ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
-          >
-            {t('login.tab.register')}
-          </button>
+      <div className="text-center mb-12">
+        <h1 className="text-3xl font-bold tracking-tight text-primary">
+          {t('login.title')}
+        </h1>
+        <div className="w-12 h-1 bg-secondary mx-auto mt-2"></div>
+        <h2 className="text-sm font-semibold text-onSurfaceVariant mt-2">
+          {t('login.subtitle')}
+        </h2>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-sm mx-auto">
+        <div className="space-y-4">
+          <div className="space-y-1">
+              <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.email')}</label>
+              <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`w-full bg-slate-50 border ${error && !email ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
+                  placeholder={t('login.placeholder.email')}
+              />
+          </div>
+          <div className="space-y-1">
+              <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.password')}</label>
+              <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full bg-slate-50 border ${error && !password ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
+                  placeholder={t('login.placeholder.password')}
+              />
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="email">{t('login.label.email')}</label>
+        {!isRegistering && (
+          <div className="flex items-center gap-2 px-1">
             <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('login.placeholder.email')}
-              />
+              id="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-outline text-primary focus:ring-primary cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-[10px] font-bold text-onSurfaceVariant cursor-pointer">
+              {t('login.remember')}
+            </label>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="password">{t('login.label.password')}</label>
-            <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('login.placeholder.password')}
-              />
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left animate-in fade-in slide-in-from-top-1">
+            <span className="leading-none py-1">{error}</span>
           </div>
+        )}
 
-          {!isRegistering && (
-            <div className="flex items-center">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
-              />
-              <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-300 cursor-pointer">
-                {t('login.remember')}
-              </label>
-            </div>
-          )}
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? t('login.status.processing') : (isRegistering ? t('login.btn.register') : t('login.btn.login'))}
+        </Button>
 
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-
-          <div className="pt-2">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? t('login.status.processing') : (isRegistering ? t('login.btn.register') : t('login.btn.login'))}
-            </Button>
-          </div>
-        </form>
-      </Card>
+        <button 
+            type="button" 
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-xs font-bold text-onSurfaceVariant text-center hover:text-primary transition-colors no-underline"
+        >
+            {isRegistering ? t('login.tab.login') : t('login.tab.register')}
+        </button>
+      </form>
     </div>
   );
 };

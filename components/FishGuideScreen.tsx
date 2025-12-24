@@ -10,7 +10,7 @@ interface FishGuideScreenProps {
 
 const ParameterBadge: React.FC<{ label: string; values: string[] }> = ({ label, values }) => (
     <div className="bg-gray-900/50 p-2 rounded border border-gray-700/50">
-        <p className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter mb-1">{label}</p>
+        <p className="text-[8px] font-bold text-gray-500 tracking-tighter mb-1">{label}</p>
         <div className="flex flex-wrap gap-1">
             {values.map(val => (
                 <span key={val} className="text-[9px] text-gray-200 bg-gray-700 px-1 rounded-sm leading-tight">
@@ -39,7 +39,7 @@ export const FishGuideScreen: React.FC<FishGuideScreenProps> = ({ onBack }) => {
                             <div>
                                 <h2 className="text-xl font-black text-blue-400 flex items-center gap-2">
                                     {fish.name}
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase ${isBig ? 'bg-orange-600 text-white' : 'bg-green-600 text-white'}`}>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded ${isBig ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
                                         {isBig ? t('guide.big_sized') : t('guide.small_sized')}
                                     </span>
                                 </h2>

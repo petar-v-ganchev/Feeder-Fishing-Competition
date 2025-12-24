@@ -13,7 +13,7 @@ interface ShopScreenProps {
 }
 
 export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase }) => {
-  const { t } = useTranslation();
+  const { t, formatCurrency } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<GameItem['type'] | 'All'>('All');
 
   const CATEGORIES: { title: string; type: GameItem['type'] }[] = [
@@ -49,7 +49,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase
       
       <Card className="mb-4 text-center">
         <p className="text-sm text-gray-400">{t('shop.balance')}</p>
-        <p className="text-2xl font-bold text-yellow-400">{user.euros.toLocaleString()} {t('common.currency')}</p>
+        <p className="text-2xl font-bold text-yellow-400">{formatCurrency(user.euros)}</p>
       </Card>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -89,7 +89,7 @@ export const ShopScreen: React.FC<ShopScreenProps> = ({ user, onBack, onPurchase
                           <p className="text-gray-300 text-xs sm:text-sm pr-4 leading-relaxed">{t(`item.desc.${item.id}`)}</p>
                         </div>
                         <div className="text-right flex-shrink-0 flex flex-col items-end">
-                          <p className="text-base font-bold text-yellow-400 mb-2">{item.price} {t('common.currency')}</p>
+                          <p className="text-base font-bold text-yellow-400 mb-2">{formatCurrency(item.price)}</p>
                           <Button
                             onClick={() => onPurchase(item)}
                             disabled={isOwned || !canAfford}

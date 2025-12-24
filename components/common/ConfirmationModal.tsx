@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button } from './Button';
-import { Card } from './Card';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -19,30 +18,30 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   message,
   onConfirm,
   onCancel,
-  confirmText = 'Confirm',
+  confirmText = 'Ok',
   cancelText = 'Cancel',
-  confirmVariant = 'danger',
+  confirmVariant = 'primary'
 }) => {
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmation-title">
-      <Card className="w-full max-w-md">
-        <h2 id="confirmation-title" className="text-2xl font-bold mb-4">{title}</h2>
-        <p className="text-gray-300 mb-6">{message}</p>
-        <div className="flex justify-end gap-4">
-          {onCancel && (
-            <Button variant="secondary" onClick={onCancel} className="!w-auto px-6">
-              {cancelText}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-m bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-sm animate-in fade-in zoom-in duration-200">
+        <div className="bg-surface border border-outline rounded-large shadow-elevation-3 p-[20px]">
+          <h2 className="text-title-large font-medium text-onSurface mb-s">{title}</h2>
+          <p className="text-body-secondary text-onSurfaceVariant mb-l">{message}</p>
+          <div className="flex flex-col gap-s">
+            <Button onClick={onConfirm} variant={confirmVariant}>
+              {confirmText}
             </Button>
-          )}
-          <Button variant={confirmVariant} onClick={onConfirm} className="!w-auto px-6">
-            {confirmText}
-          </Button>
+            {onCancel && (
+              <Button onClick={onCancel} variant="secondary">
+                {cancelText}
+              </Button>
+            )}
+          </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

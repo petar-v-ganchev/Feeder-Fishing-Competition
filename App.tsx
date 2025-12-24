@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth } from './services/firebase';
 import { Screen, User, Loadout, MatchResult, DailyChallenge, GameItem } from './types';
@@ -38,6 +38,11 @@ const AppContent: React.FC = () => {
   const [liveParticipants, setLiveParticipants] = useState<LiveParticipant[]>([]);
 
   const currentScreen = screenStack[screenStack.length - 1];
+  const currentScreenRef = useRef(currentScreen);
+
+  useEffect(() => {
+    currentScreenRef.current = currentScreen;
+  }, [currentScreen]);
   
   const handleNavigate = (screen: Screen) => {
     setScreenStack(prev => [...prev, screen]);
@@ -83,44 +88,33 @@ const AppContent: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userProfile = await getUserProfile(firebaseUser.uid);
-        
         if (userProfile) {
-          // Robust Language Synchronization
-          const appLocaleInStorage = localStorage.getItem('appLocale') as LanguageCode;
-          
+          // Sync language: prioritize local manual selection during login process
           if (userProfile.language) {
-            if (currentScreen === Screen.Login) {
-              // User manually selected a language on Login Screen, override DB
-              if (userProfile.language !== locale) {
+             if (userProfile.language !== locale) {
+                // Update profile to match current local choice if different
                 await updateUserProfile(firebaseUser.uid, { language: locale });
-                userProfile.language = locale;
-              }
-            } else {
-              // Standard session, DB is source of truth
-              if (userProfile.language !== locale) {
-                setLocale(userProfile.language as LanguageCode);
-              }
-            }
+             }
           } else {
-            // First time login, save current choice
-            await updateUserProfile(firebaseUser.uid, { language: locale });
+             // Initialize profile language
+             await updateUserProfile(firebaseUser.uid, { language: locale });
           }
 
           setUser(userProfile);
           setPendingFirebaseUser(null);
-          handleResetStack(Screen.MainMenu);
-          fetchAndSetChallenge(userProfile.language || locale || 'en');
+          if (currentScreenRef.current === Screen.Login || currentScreenRef.current === Screen.CreateProfile) {
+            handleResetStack(Screen.MainMenu);
+          }
+          fetchAndSetChallenge(locale);
         } else {
           const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
           const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
           const isNewUser = Math.abs(creationTime - lastSignInTime) < 5000;
-
           if (isNewUser) {
             setPendingFirebaseUser(firebaseUser);
             handleResetStack(Screen.CreateProfile);
           } else {
             await signOut(auth);
-            sessionStorage.setItem('registrationError', t('error.profile_missing'));
           }
         }
       } else {
@@ -130,13 +124,12 @@ const AppContent: React.FC = () => {
       }
       setIsAuthLoading(false);
     });
-
     return () => unsubscribe();
-  }, [t, fetchAndSetChallenge, setLocale, locale, currentScreen]); 
+  }, [fetchAndSetChallenge, setLocale, locale]); 
 
   useEffect(() => {
     if (user) {
-      fetchAndSetChallenge(locale);
+        fetchAndSetChallenge(locale);
     }
   }, [locale, user, fetchAndSetChallenge]);
 
@@ -153,43 +146,13 @@ const AppContent: React.FC = () => {
     if (user) {
         const playerRank = result.standings.findIndex(p => p.id === user.id) + 1;
         const isWin = playerRank === 1;
-        const isTop5 = playerRank <= 5;
-
-        if (dailyChallenge && !dailyChallenge.isCompleted) {
-            let newProgress = dailyChallenge.progress;
-            const { challengeType, targetCount } = dailyChallenge;
-
-            if (challengeType === 'enter') newProgress++;
-            else if (challengeType === 'win' && isWin) newProgress++;
-            else if (challengeType === 'top5' && isTop5) newProgress++;
-            
-            if (newProgress > dailyChallenge.progress) {
-                const isCompleted = newProgress >= targetCount;
-                const updatedChallenge = { ...dailyChallenge, progress: newProgress, isCompleted };
-                setDailyChallenge(updatedChallenge);
-                const today = new Date().toDateString();
-                localStorage.setItem('dailyChallenge', JSON.stringify({ 
-                  date: today, 
-                  challenge: updatedChallenge,
-                  locale 
-                }));
-            }
-        }
-        
         await updatePlayerStats(user.id, isWin, playerRank, user.country, result.eurosEarned, result.isLive);
-
         const newStats = { ...user.stats };
         if (result.isLive) {
             newStats.matchesPlayed += 1;
             if (isWin) newStats.wins += 1;
         }
-
-        setUser({
-            ...user,
-            euros: user.euros + result.eurosEarned,
-            stats: newStats,
-        });
-
+        setUser({ ...user, euros: user.euros + result.eurosEarned, stats: newStats });
         setMatchResult(result);
         handleReplaceScreen(Screen.Results);
     }
@@ -207,140 +170,54 @@ const AppContent: React.FC = () => {
         setUser(prevUser => prevUser ? ({ ...prevUser, euros: prevUser.euros + dailyChallenge.reward}) : null);
         const updatedChallenge = {...dailyChallenge, isClaimed: true};
         setDailyChallenge(updatedChallenge);
-        const today = new Date().toDateString();
-        localStorage.setItem('dailyChallenge', JSON.stringify({ 
-          date: today, 
-          challenge: updatedChallenge,
-          locale 
-                }));
+        localStorage.setItem('dailyChallenge', JSON.stringify({ date: new Date().toDateString(), challenge: updatedChallenge, locale }));
     }
   };
 
   const handlePurchaseItem = async (itemToBuy: GameItem) => {
     if (!user) return;
-    if (user.inventory.some(i => i.id === itemToBuy.id)) {
-      setInfoModal({ title: t('shop.owned'), message: t('error.already_owned') });
-      return;
-    }
-    if (user.euros < itemToBuy.price) {
-      setInfoModal({ title: t('shop.balance'), message: t('error.insufficient_funds') });
-      return;
-    }
-
-    const updatedUser: User = {
-      ...user,
-      euros: user.euros - itemToBuy.price,
-      inventory: [...user.inventory, itemToBuy],
-    };
-    
-    await updateUserProfile(user.id, {
-        euros: updatedUser.euros,
-        inventory: updatedUser.inventory
-    });
-
+    const updatedUser: User = { ...user, euros: user.euros - itemToBuy.price, inventory: [...user.inventory, itemToBuy] };
+    await updateUserProfile(user.id, { euros: updatedUser.euros, inventory: updatedUser.inventory });
     setUser(updatedUser);
-    setInfoModal({ title: t('common.ok'), message: t('success.profile_updated') });
   };
 
-  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string }) => {
-    if (!user) {
-        throw new Error(t('error.generic'));
-    }
-    try {
-        const hasEmailChanged = updatedData.email.toLowerCase() !== user.email.toLowerCase();
-
-        const profileDataToUpdate: Partial<User> = {
-            displayName: updatedData.displayName,
-            avatar: updatedData.avatar,
-            country: updatedData.country,
-        };
-
-        await updateUserProfile(user.id, profileDataToUpdate);
-
-        if (hasEmailChanged) {
-            await updateUserEmail(updatedData.email);
-        }
-        
-        setUser(prev => prev ? { ...prev, ...profileDataToUpdate } : null);
-        
-        return { emailChanged: hasEmailChanged };
-    } catch (error: any) {
-        throw error;
-    }
-  };
-
-  const handleDeleteProfile = async () => {
-    try {
-      await deleteUserAccount();
-    } catch (error: any) {
-      setInfoModal({ 
-        title: t('common.error'), 
-        message: error.message.includes("recent-login") ? t('error.recent_login_required') : t('error.generic')
-      });
-    }
+  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string; language: string }) => {
+    if (!user) throw new Error(t('error.generic'));
+    const profileDataToUpdate: Partial<User> = { 
+      displayName: updatedData.displayName, 
+      avatar: updatedData.avatar, 
+      country: updatedData.country,
+      language: updatedData.language
+    };
+    await updateUserProfile(user.id, profileDataToUpdate);
+    setUser(prev => prev ? { ...prev, ...profileDataToUpdate } : null);
+    return { emailChanged: false };
   };
 
   const renderScreen = () => {
-    if (isAuthLoading) {
-      return <div className="min-h-screen flex items-center justify-center bg-gray-900"><p className="text-gray-400 font-bold">{t('app.loading')}</p></div>;
-    }
-    
-    if (currentScreen === Screen.Login) {
-      return <LoginScreen />;
-    }
-
-    if (currentScreen === Screen.CreateProfile && pendingFirebaseUser) {
-      return <CreateProfileScreen firebaseUser={pendingFirebaseUser} onProfileCreated={(newUser) => {
-          setUser(newUser);
-          setPendingFirebaseUser(null);
-          handleResetStack(Screen.MainMenu);
-      }} />;
-    }
-    
-    if (!user) {
-        return <LoginScreen />;
-    }
+    if (isAuthLoading) return <div className="h-screen flex items-center justify-center"><p className="text-xl font-bold animate-pulse text-primary">Loading game...</p></div>;
+    if (currentScreen === Screen.Login) return <LoginScreen />;
+    if (currentScreen === Screen.CreateProfile && pendingFirebaseUser) return <CreateProfileScreen firebaseUser={pendingFirebaseUser} onProfileCreated={(nu) => { setUser(nu); setPendingFirebaseUser(null); handleResetStack(Screen.MainMenu); }} />;
+    if (!user) return <LoginScreen />;
     
     switch (currentScreen) {
-      case Screen.MainMenu:
-        return <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} />;
-      case Screen.Matchmaking:
-        return <MatchmakingScreen onMatchFound={() => handleNavigate(Screen.Loadout)} />;
-      case Screen.LiveMatchmaking:
-        return <LiveMatchmakingScreen user={user} onBack={handleBack} onMatchFound={(participants) => {
-            setLiveParticipants(participants);
-            handleNavigate(Screen.Loadout);
-        }} />;
-      case Screen.Loadout:
-        // Use a key to force remount and re-population when user inventory changes
-        return <LoadoutScreen 
-          key={`loadout-${user.id}-${user.inventory.length}`}
-          user={user} 
-          onStartMatch={handleStartMatch} 
-          onBack={() => handleResetStack(Screen.MainMenu)} 
-          onNavigate={handleNavigate} 
-        />;
-      case Screen.MatchUI:
-        return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} />;
-      case Screen.Results:
-        return matchResult && <ResultsScreen result={matchResult} onContinue={handleResultsContinue} />;
-      case Screen.Profile:
-        return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} onBack={handleBack} />;
-      case Screen.EditProfile:
-        return <EditProfileScreen user={user} onBack={handleBack} onSave={handleUpdateProfile} onDeleteAccount={handleDeleteProfile} />;
-      case Screen.Inventory:
-          return <InventoryScreen user={user} onBack={handleBack} />;
-      case Screen.Shop:
-          return <ShopScreen user={user} onBack={handleBack} onPurchase={handlePurchaseItem} />;
-      case Screen.Leaderboard:
-          return <LeaderboardScreen user={user} onBack={handleBack} />;
-      default:
-        return <LoginScreen />;
+      case Screen.MainMenu: return <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} />;
+      case Screen.Matchmaking: return <MatchmakingScreen onMatchFound={() => handleNavigate(Screen.Loadout)} />;
+      case Screen.LiveMatchmaking: return <LiveMatchmakingScreen user={user} onBack={handleBack} onMatchFound={setLiveParticipants} />;
+      case Screen.Loadout: return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => handleResetStack(Screen.MainMenu)} onNavigate={handleNavigate} />;
+      case Screen.MatchUI: return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} />;
+      case Screen.Results: return matchResult && <ResultsScreen result={matchResult} onContinue={handleResultsContinue} />;
+      case Screen.Profile: return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} onBack={handleBack} />;
+      case Screen.EditProfile: return <EditProfileScreen user={user} onBack={handleBack} onSave={handleUpdateProfile} onDeleteAccount={deleteUserAccount} />;
+      case Screen.Inventory: return <InventoryScreen user={user} onBack={handleBack} />;
+      case Screen.Shop: return <ShopScreen user={user} onBack={handleBack} onPurchase={handlePurchaseItem} />;
+      case Screen.Leaderboard: return <LeaderboardScreen user={user} onBack={handleBack} />;
+      default: return <LoginScreen />;
     }
   };
 
   return (
-    <main className="container mx-auto max-w-lg min-h-screen bg-gray-900 text-white shadow-2xl overflow-x-hidden">
+    <div className="relative w-full min-h-screen bg-surface flex flex-col overflow-x-hidden">
       {renderScreen()}
       {infoModal && (
         <ConfirmationModal
@@ -348,20 +225,17 @@ const AppContent: React.FC = () => {
           title={infoModal.title}
           message={infoModal.message}
           onConfirm={() => setInfoModal(null)}
-          confirmText={t('common.ok')}
-          confirmVariant="primary"
+          confirmText="Ok"
         />
       )}
-    </main>
+    </div>
   );
 };
 
-const App: React.FC = () => {
-  return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
-  );
-};
+const App: React.FC = () => (
+  <LanguageProvider>
+    <AppContent />
+  </LanguageProvider>
+);
 
 export default App;

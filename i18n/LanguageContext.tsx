@@ -5,6 +5,7 @@ interface LanguageContextType {
   locale: LanguageCode;
   setLocale: (code: LanguageCode) => void;
   t: (key: string, params?: Record<string, string>) => string;
+  formatCurrency: (amount: number) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -22,7 +23,6 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const contextValue = useMemo(() => {
     const t = (key: string, params?: Record<string, string>): string => {
-      // Direct access to translations[locale] should be safe because we populated them via spread
       let text = (translations[locale] && translations[locale][key]) 
                  || (translations['en'] && translations['en'][key]) 
                  || key;
@@ -35,13 +35,26 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
       return text;
     };
 
-    return { locale, setLocale, t };
+    const formatCurrency = (amount: number): string => {
+      const symbol = '€';
+      // Format with a non-breaking space as thousands separator instead of comma
+      const formattedAmount = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
+      
+      if (locale === 'en') {
+        return `${symbol}${formattedAmount}`;
+      }
+      return `${formattedAmount}${symbol}`;
+    };
+
+    return { locale, setLocale, t, formatCurrency };
   }, [locale]);
 
   return (
-    <LanguageContext.Provider value={contextValue}>
-      {children}
-    </LanguageContext.Provider>
+    <div className="contents">
+      <LanguageContext.Provider value={contextValue}>
+        {children}
+      </LanguageContext.Provider>
+    </div>
   );
 };
 

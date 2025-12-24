@@ -4,21 +4,78 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#1e3a8a" />
     <meta
       name="description"
-      content="Feeder Fishing Competition Game"
+      content="Feeder fishing competition game"
     />
-    <title>Feeder Fishing Competition</title>
+    <title>Feeder fishing pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes catch-float {
-            0% { transform: translateY(0) scale(0.8); opacity: 0; }
-            25% { transform: translateY(-10px) scale(1); opacity: 1; }
-            100% { transform: translateY(-80px) scale(0.7); opacity: 0; }
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#1e3a8a', // Navy
+              secondary: '#dc2626', // Red (Replaced Orange #f97316)
+              surface: '#ffffff',
+              background: '#f1f5f9',
+              onSurface: '#0f172a',
+              onSurfaceVariant: '#64748b',
+              outline: '#e2e8f0',
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            borderRadius: {
+              'small': '4px',
+              'medium': '8px',
+              'large': '16px',
+            }
+          }
         }
-        .animate-catch-float {
-            animation: catch-float 2.5s ease-out forwards;
+      }
+    </script>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #root {
+            width: 100%;
+            max-width: 480px;
+            background-color: #ffffff;
+            min-height: 100vh;
+            box-shadow: 0 0 40px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        @keyframes catch-fade {
+            0% { transform: scale(0.9); opacity: 0; }
+            10% { transform: scale(1); opacity: 1; }
+            80% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.05); opacity: 0; }
+        }
+        .animate-catch-event {
+            animation: catch-fade 2s ease-in-out forwards;
         }
     </style>
   <script type="importmap">
@@ -36,8 +93,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-900 text-white">
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

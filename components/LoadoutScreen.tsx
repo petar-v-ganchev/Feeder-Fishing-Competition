@@ -18,15 +18,15 @@ interface LoadoutScreenProps {
 }
 
 const SelectInput: React.FC<{label: string, value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void, options: {label: string, value: string}[]}> = ({label, value, onChange, options}) => (
-    <div className="flex items-center justify-between gap-2 py-0.5 min-h-[24px]">
-        <label className="text-[10px] font-bold text-gray-400 truncate w-[75px] shrink-0" title={label}>
+    <div className="flex items-center justify-between gap-s py-xs min-h-[32px]">
+        <label className="text-caption font-medium text-onSurfaceVariant truncate w-[90px] shrink-0" title={label}>
           {label}
         </label>
         <div className="relative flex-grow">
           <select 
             value={value} 
             onChange={onChange} 
-            className="w-full h-[22px] px-1.5 bg-gray-700 border border-gray-600 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.75rem_0.75rem] bg-[right_0.15rem_center] bg-no-repeat pr-4"
+            className="w-full h-[28px] px-s bg-surface border border-outline rounded-small text-caption focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1rem_1rem] bg-[right_0.25rem_center] bg-no-repeat pr-s"
           >
               {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
@@ -46,13 +46,13 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
         dominant: {
             id: dominant.name,
             name: t(`species.${dominant.name}`),
-            variant: t(`guide.${dominant.variant.toLowerCase()}_sized`),
+            variant: t(`common.${dominant.variant.toLowerCase()}`),
             fullName: `${dominant.variant} ${dominant.name}`
         },
         secondary: {
             id: secondary.name,
             name: t(`species.${secondary.name}`),
-            variant: t(`guide.${secondary.variant.toLowerCase()}_sized`),
+            variant: t(`common.${secondary.variant.toLowerCase()}`),
             fullName: `${secondary.variant} ${secondary.name}`
         }
     };
@@ -121,7 +121,7 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
       return { label: t(`opt.dist.${key}`), value: opt };
   });
 
-  const getIntervalOptions = () => MOCK_CASTING_INTERVALS.map(opt => {
+  const handleIntervalOptions = () => MOCK_CASTING_INTERVALS.map(opt => {
       let key = 'regular';
       if (opt.includes('2 mins')) key = 'frequent';
       if (opt.includes('10 mins')) key = 'patient';
@@ -139,46 +139,48 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen p-2 overflow-hidden bg-gray-900">
+    <div className="flex flex-col h-screen max-h-screen p-m overflow-hidden bg-surface text-onSurface">
       <div className="flex-shrink-0">
-        <header className="relative flex items-center justify-center p-1.5 mb-1">
+        <header className="relative flex items-center justify-center p-s mb-xs">
           {onBack && (
             <button
               onClick={onBack}
-              className="absolute left-0 text-blue-400 hover:text-blue-300 transition-colors text-sm px-1"
+              className="absolute left-0 p-2 text-primary hover:text-secondary transition-colors"
+              aria-label="Go back"
             >
-              &lt; {t('nav.back')}
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
           )}
-          <h1 className="text-lg font-bold text-center">{t('match.prep')}</h1>
+          <h1 className="text-xl font-bold text-center text-primary">{t('match.prep')}</h1>
         </header>
       </div>
       
-      <div className="flex-shrink-0 mb-2">
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-xl border-b-4 border-blue-600/50">
-          <div className="text-center border-b border-gray-700 pb-2 mb-3">
-              <h2 className="text-base font-black uppercase tracking-widest text-blue-400">{t('match.venue')}</h2>
-              <p className="text-[10px] text-gray-500 font-medium">{t('match.session')}</p>
+      <div className="flex-shrink-0 mb-m">
+        <div className="bg-slate-50 border border-outline rounded-medium p-4 shadow-sm border-b-2 border-primary/20">
+          <div className="text-center border-b border-outline pb-2 mb-2">
+              <h2 className="text-xs font-bold text-primary">{t('match.venue')}</h2>
           </div>
           <div className="flex justify-around items-center text-center gap-4">
               <div className="flex-1">
-                  <p className="text-[9px] text-gray-500 font-bold tracking-tighter mb-0.5">{t('match.dominant')}</p>
-                  <p className="font-black text-sm text-blue-300">{venueFish.dominant.name}</p>
-                  <p className="text-[10px] font-bold text-blue-500/80 uppercase tracking-widest">{venueFish.dominant.variant}</p>
+                  <p className="text-[10px] text-onSurfaceVariant font-bold mb-1">{t('match.dominant')}</p>
+                  <p className="font-bold text-sm text-blue-800">{venueFish.dominant.name}</p>
+                  <p className="text-[10px] font-medium text-primary opacity-70">{venueFish.dominant.variant}</p>
               </div>
-              <div className="border-l border-gray-700 h-10"></div>
+              <div className="border-l border-outline h-8"></div>
               <div className="flex-1">
-                  <p className="text-[9px] text-gray-500 font-bold tracking-tighter mb-0.5">{t('match.secondary')}</p>
-                  <p className="font-black text-sm text-teal-300">{venueFish.secondary.name}</p>
-                  <p className="text-[10px] font-bold text-teal-500/80 uppercase tracking-widest">{venueFish.secondary.variant}</p>
+                  <p className="text-[10px] text-onSurfaceVariant font-bold mb-1">{t('match.secondary')}</p>
+                  <p className="font-bold text-sm text-slate-700">{venueFish.secondary.name}</p>
+                  <p className="text-[10px] font-medium text-onSurfaceVariant opacity-70">{venueFish.secondary.variant}</p>
               </div>
           </div>
         </div>
       </div>
       
       <div className="flex-grow overflow-hidden flex flex-col min-h-0">
-        <div className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 shadow-inner flex flex-col justify-between overflow-y-auto custom-scrollbar">
-          <div className="flex flex-col space-y-0">
+        <div className="bg-slate-50 border border-outline rounded-medium px-4 py-2 shadow-inner flex flex-col justify-between overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col space-y-1">
               <SelectInput label={t('match.tackle.rod')} value={loadout.rod} onChange={(e) => handleLoadoutChange('rod', e.target.value)} options={getInventoryOptions('Rod')} />
               <SelectInput label={t('match.tackle.reel')} value={loadout.reel} onChange={(e) => handleLoadoutChange('reel', e.target.value)} options={getInventoryOptions('Reel')} />
               <SelectInput label={t('match.tackle.line')} value={loadout.line} onChange={(e) => handleLoadoutChange('line', e.target.value)} options={getInventoryOptions('Line')} />
@@ -189,17 +191,17 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
               <SelectInput label={t('match.tackle.groundbait')} value={loadout.groundbait} onChange={(e) => handleLoadoutChange('groundbait', e.target.value)} options={getInventoryOptions('Groundbait')} />
               <SelectInput label={t('match.tackle.feedertip')} value={loadout.feederTip} onChange={(e) => handleLoadoutChange('feederTip', e.target.value)} options={getTipOptions()} />
               <SelectInput label={t('match.tackle.distance')} value={loadout.castingDistance} onChange={(e) => handleLoadoutChange('castingDistance', e.target.value)} options={getDistanceOptions()} />
-              <SelectInput label={t('match.tackle.interval')} value={loadout.castingInterval} onChange={(e) => handleLoadoutChange('castingInterval', e.target.value)} options={getIntervalOptions()} />
+              <SelectInput label={t('match.tackle.interval')} value={loadout.castingInterval} onChange={(e) => handleLoadoutChange('castingInterval', e.target.value)} options={handleIntervalOptions()} />
           </div>
         </div>
       </div>
       
-      <div className="flex-shrink-0 mt-2 mb-1 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary">{t('main.inventory')}</Button>
-          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary">{t('main.shop')}</Button>
+      <div className="flex-shrink-0 mt-4 mb-2 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary" className="h-10 text-xs">{t('main.inventory')}</Button>
+          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary" className="h-10 text-xs">{t('main.shop')}</Button>
         </div>
-        <Button onClick={handleStartMatchInternal} className="shadow-lg shadow-blue-900/40">{t('match.start')}</Button>
+        <Button onClick={handleStartMatchInternal} className="h-14">{t('match.start')}</Button>
       </div>
     </div>
   );

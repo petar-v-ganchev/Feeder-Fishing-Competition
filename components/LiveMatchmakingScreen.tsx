@@ -47,6 +47,8 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
     }, [currentSessionTime, participants, hasJoined, onMatchFound]);
 
     useEffect(() => {
+        if (!user || !user.id) return;
+        
         let isMounted = true;
 
         const syncWithSession = async () => {
@@ -69,9 +71,10 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
         return () => {
             isMounted = false;
             unsubscribe();
-            leaveLiveSession(user.id, currentSessionTime);
+            // Using user.id directly in cleanup is safe as it's captured in closure
+            leaveLiveSession(user.id, currentSessionTime).catch(e => console.warn("Error leaving session:", e));
         };
-    }, [currentSessionTime, user.id, user]);
+    }, [currentSessionTime, user]);
 
     const formatCountdown = (ms: number) => {
         const totalSeconds = Math.floor(ms / 1000);
@@ -85,7 +88,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
             <Header title={t('live.title')} onBack={onBack} />
             
             <Card className="mb-6 text-center border-blue-500/50">
-                <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1">{t('live.next_session')}</p>
+                <p className="text-gray-400 text-sm font-bold tracking-widest mb-1">{t('live.next_session')}</p>
                 <h2 className="text-5xl font-black text-blue-400 mb-2 font-mono">{formatCountdown(timeLeft)}</h2>
                 <div className="flex flex-col items-center">
                     <p className="text-[9px] text-blue-500 font-bold mt-1">
@@ -97,7 +100,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
             <Card className="flex-grow mb-6 flex flex-col overflow-hidden">
                 <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-4">
                     <h3 className="font-bold">{t('live.joined_anglers')}</h3>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${participants.length >= 2 ? 'bg-green-600' : 'bg-orange-600'} text-white`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${participants.length >= 2 ? 'bg-green-600' : 'bg-red-600'} text-white`}>
                         {participants.length} / {t('live.min_required')}
                     </span>
                 </div>
@@ -114,10 +117,10 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
                             )}
                             <div className="flex-grow">
                                 <p className="text-sm font-bold leading-tight">{p.displayName}</p>
-                                <p className="text-[10px] text-gray-500 uppercase">{p.country}</p>
+                                <p className="text-[10px] text-gray-500">{p.country}</p>
                             </div>
                             {p.id === user.id && (
-                                <span className="text-[10px] font-bold text-blue-400 italic">YOU</span>
+                                <span className="text-[10px] font-bold text-blue-400 italic">You</span>
                             )}
                         </div>
                     ))}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTranslation } from '../../i18n/LanguageContext';
 
 interface HeaderProps {
   title: string;
@@ -7,19 +6,20 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, onBack }) => {
-  const { t } = useTranslation();
-  
   return (
     <header className="relative flex items-center justify-center p-4 mb-6">
       {onBack && (
         <button
           onClick={onBack}
-          className="absolute left-0 text-blue-400 hover:text-blue-300 transition-colors"
+          className="absolute left-4 p-2 text-primary hover:text-secondary transition-colors"
+          aria-label="Go back"
         >
-          &lt; {t('nav.back')}
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+          </svg>
         </button>
       )}
-      <h1 className="text-2xl font-bold text-center">{title}</h1>
+      <h1 className="text-2xl font-bold text-center text-primary px-12">{title}</h1>
     </header>
   );
 };
