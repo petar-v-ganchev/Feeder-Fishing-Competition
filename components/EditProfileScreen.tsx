@@ -6,6 +6,7 @@ import { Header } from './common/Header';
 import { MOCK_COUNTRIES } from '../constants';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { resetPassword } from '../services/userService';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface EditProfileScreenProps {
   user: User;
@@ -47,6 +48,7 @@ const SelectField: React.FC<{label: string, id: string, value: string, onChange:
 );
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBack, onSave, onDeleteAccount }) => {
+    const { t } = useTranslation();
     const [displayName, setDisplayName] = useState(user.displayName);
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar);
@@ -74,29 +76,38 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
             };
             reader.readAsDataURL(file);
         } else if (file) {
-            alert('Image size should not exceed 1MB.');
+            alert(t('error.image_size'));
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
         setError(null);
         setDisplayNameError(null);
+
+        // Manual validation for localized error messages
+        if (!displayName.trim() || !email.trim()) {
+            setError(t('error.fill_all'));
+            return;
+        }
+
+        setIsLoading(true);
         try {
-            const { emailChanged } = await onSave({ displayName, email, avatar, country });
+            const { emailChanged } = await onSave({ displayName: displayName.trim(), email: email.trim(), avatar, country });
             if (emailChanged) {
                 setIsEmailInfoModalOpen(true);
             } else {
-                alert('Profile updated successfully!');
+                alert(t('success.profile_updated'));
                 onBack(); 
             }
         } catch (err: any) {
             const errorMessage = err?.message || err;
             if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('display name is already taken')) {
-                setDisplayNameError(errorMessage);
+                setDisplayNameError(t('error.display_name_taken'));
+            } else if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('between 3 and 15 characters')) {
+                setDisplayNameError(t('error.display_name_length'));
             } else {
-                setError(typeof errorMessage === 'string' ? errorMessage : 'An unexpected error occurred. Please try again.');
+                setError(typeof errorMessage === 'string' ? errorMessage : t('error.generic'));
             }
         } finally {
             setIsLoading(false);
@@ -115,22 +126,16 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
             setIsResetSuccessModalOpen(true);
         } catch (error: any) {
             console.error("Password reset failed:", error);
-            if (error.code === 'auth/user-not-found') {
-                 alert('Failed to send password reset email: No account was found with this email address.');
-            } else if (error.code === 'auth/invalid-email') {
-                alert('Failed to send password reset email: The email address is not valid.');
-            } else {
-                 alert('Failed to send password reset email. Please try again later.');
-            }
+            setError(t('error.pwd_reset_fail'));
         }
     };
 
     return (
         <div className="p-4 max-w-2xl mx-auto">
-            <Header title="Edit Profile" onBack={onBack} />
+            <Header title={t('edit.title')} onBack={onBack} />
             
             <Card>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <div className="flex justify-center mb-6">
                         <div className="relative">
                             {avatar.startsWith('data:image/') ? (
@@ -162,7 +167,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
 
                     <div>
                         <InputField 
-                            label="Display Name"
+                            label={t('edit.display_name')}
                             id="displayName"
                             type="text"
                             value={displayName}
@@ -176,7 +181,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                     </div>
 
                     <SelectField
-                        label="Country"
+                        label={t('edit.country')}
                         id="country"
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
@@ -185,7 +190,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                     </SelectField>
                     <div>
                         <InputField 
-                            label="Email"
+                            label={t('edit.email')}
                             id="email"
                             type="email"
                             value={email}
@@ -202,9 +207,9 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                             variant="secondary"
                             onClick={() => setIsResetConfirmOpen(true)}
                         >
-                            Reset Password
+                            {t('edit.reset_pwd')}
                         </Button>
-                        <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Changes'}</Button>
+                        <Button type="submit" disabled={isLoading}>{isLoading ? t('login.status.saving') : t('edit.save')}</Button>
                     </div>
                 </form>
             </Card>
@@ -215,36 +220,36 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                     onClick={() => setIsDeleteConfirmOpen(true)}
                     className="text-red-500 hover:text-red-400 text-sm font-medium"
                 >
-                    Delete Profile
+                    {t('edit.delete')}
                 </button>
             </div>
 
             <ConfirmationModal
                 isOpen={isDeleteConfirmOpen}
-                title="Delete Profile"
-                message="Are you sure you want to delete your profile? This action is permanent and cannot be undone."
+                title={t('edit.confirm.delete_title')}
+                message={t('edit.confirm.delete_msg')}
                 onConfirm={handleDeleteConfirm}
                 onCancel={() => setIsDeleteConfirmOpen(false)}
-                confirmText="Delete"
-                cancelText="Cancel"
+                confirmText={t('edit.delete')}
+                cancelText={t('nav.back')}
                 confirmVariant="danger"
             />
             
             <ConfirmationModal
                 isOpen={isResetConfirmOpen}
-                title="Reset Password"
-                message={`An email with instructions to reset your password will be sent to ${user.email}. Do you want to continue?`}
+                title={t('edit.confirm.reset_title')}
+                message={t('edit.confirm.reset_msg')}
                 onConfirm={handlePasswordResetConfirm}
                 onCancel={() => setIsResetConfirmOpen(false)}
-                confirmText="Send Email"
-                cancelText="Cancel"
+                confirmText={t('edit.reset_pwd')}
+                cancelText={t('nav.back')}
                 confirmVariant="primary"
             />
 
             <ConfirmationModal
                 isOpen={isResetSuccessModalOpen}
-                title="Email Sent"
-                message={`An email with instructions to reset your password has been sent to ${user.email}. Please check your inbox and spam/junk folder.`}
+                title={t('edit.confirm.email_sent_title')}
+                message={t('edit.confirm.email_sent_msg')}
                 onConfirm={() => setIsResetSuccessModalOpen(false)}
                 confirmText="OK"
                 confirmVariant="primary"
@@ -252,8 +257,8 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
 
             <ConfirmationModal
                 isOpen={isEmailInfoModalOpen}
-                title="Check Your Email"
-                message={`A verification link has been sent to ${email}. Please click the link in the email to finalize the change.`}
+                title={t('edit.confirm.verify_email_title')}
+                message={t('edit.confirm.verify_email_msg')}
                 onConfirm={() => {
                     setIsEmailInfoModalOpen(false);
                     onBack();

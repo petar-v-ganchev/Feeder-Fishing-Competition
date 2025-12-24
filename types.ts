@@ -2,6 +2,7 @@ export enum Screen {
   Login,
   MainMenu,
   Matchmaking,
+  LiveMatchmaking,
   Loadout,
   MatchUI,
   Results,
@@ -19,6 +20,7 @@ export interface User {
   email: string;
   avatar: string;
   country: string;
+  language?: string;
   euros: number;
   inventory: GameItem[];
   stats: {
@@ -47,6 +49,10 @@ export interface Loadout {
   feederTip: string;
   castingDistance: string;
   castingInterval: string;
+  venueFish?: {
+    dominant: string;
+    secondary: string;
+  };
 }
 
 export interface MatchResult {
@@ -54,6 +60,7 @@ export interface MatchResult {
   opponentWeight: number;
   eurosEarned: number;
   standings: MatchParticipant[];
+  isLive: boolean;
 }
 
 export interface DailyChallenge {
@@ -74,6 +81,8 @@ export interface MatchParticipant {
   totalWeight: number;
   catchStreak: number;
   lastCatchTime: number; // For trend tracking
+  avatar?: string;
+  country?: string;
 }
 
 export type VenueCondition = 'Clear Water' | 'Murky Water' | 'Warm Weather' | 'Cool Weather';

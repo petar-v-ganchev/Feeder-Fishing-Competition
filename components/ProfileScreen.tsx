@@ -4,6 +4,7 @@ import { Button } from './common/Button';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
 import { getPlayerRanks } from '../services/leaderboardService';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface ProfileScreenProps {
   user: User;
@@ -24,6 +25,7 @@ const StatItem: React.FC<{label: string, value: string | number, isLoading?: boo
 );
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, onLogout, onBack }) => {
+  const { t } = useTranslation();
   const [ranks, setRanks] = useState<{global: number, country: number} | null>(null);
   const [isLoadingRanks, setIsLoadingRanks] = useState(true);
 
@@ -39,7 +41,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <Header title="Profile & Stats" onBack={onBack} />
+      <Header title={t('profile.title')} onBack={onBack} />
       
       <Card className="mb-6">
         <div className="flex items-center space-x-4">
@@ -59,20 +61,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
       </Card>
       
       <Card>
-        <h3 className="text-xl font-bold mb-4">Fishing Statistics</h3>
-        <StatItem label="Matches Played" value={user.stats.matchesPlayed} />
-        <StatItem label="Matches Won" value={user.stats.wins} />
-        <StatItem label="Win Rate" value={`${user.stats.matchesPlayed > 0 ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) : 0}%`} />
-        <StatItem label="All-Time Global Rank" value={ranks ? `#${ranks.global}` : '-'} isLoading={isLoadingRanks} />
-        <StatItem label="All-Time Country Rank" value={ranks ? `#${ranks.country}` : '-'} isLoading={isLoadingRanks} />
+        <h3 className="text-xl font-bold mb-4">{t('profile.stats')}</h3>
+        <StatItem label={t('profile.matches_played')} value={user.stats.matchesPlayed} />
+        <StatItem label={t('profile.wins')} value={user.stats.wins} />
+        <StatItem label={t('profile.win_rate')} value={`${user.stats.matchesPlayed > 0 ? ((user.stats.wins / user.stats.matchesPlayed) * 100).toFixed(0) : 0}%`} />
+        <StatItem label={t('profile.global_rank')} value={ranks ? `#${ranks.global}` : '-'} isLoading={isLoadingRanks} />
+        <StatItem label={t('profile.country_rank')} value={ranks ? `#${ranks.country}` : '-'} isLoading={isLoadingRanks} />
       </Card>
 
       <div className="mt-8 space-y-4">
         <Button onClick={() => onNavigate(Screen.EditProfile)} variant="secondary">
-          Edit Profile
+          {t('profile.edit')}
         </Button>
         <div className="text-center">
-          <button onClick={onLogout} className="text-red-500 font-medium">Logout</button>
+          <button onClick={onLogout} className="text-red-500 font-medium">{t('profile.logout')}</button>
         </div>
       </div>
     </div>

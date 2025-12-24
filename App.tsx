@@ -1,11 +1,11 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth } from './services/firebase';
 import { Screen, User, Loadout, MatchResult, DailyChallenge, GameItem } from './types';
 import { LoginScreen } from './components/LoginScreen';
 import { MainMenuScreen } from './components/MainMenuScreen';
 import { MatchmakingScreen } from './components/MatchmakingScreen';
+import { LiveMatchmakingScreen } from './components/LiveMatchmakingScreen';
 import { LoadoutScreen } from './components/LoadoutScreen';
 import { MatchUIScreen } from './components/MatchUIScreen';
 import { ResultsScreen } from './components/ResultsScreen';
@@ -19,8 +19,12 @@ import { getDailyChallenge } from './services/dailyChallengeService';
 import { updatePlayerStats } from './services/leaderboardService';
 import { getUserProfile, updateUserProfile, deleteUserAccount, updateUserEmail } from './services/userService';
 import { ConfirmationModal } from './components/common/ConfirmationModal';
+import { type LiveParticipant } from './services/liveMatchService';
+import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
+import { LanguageCode } from './i18n/translations';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { locale, setLocale, t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [pendingFirebaseUser, setPendingFirebaseUser] = useState<FirebaseAuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -31,6 +35,7 @@ const App: React.FC = () => {
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [isChallengeLoading, setIsChallengeLoading] = useState(false);
   const [infoModal, setInfoModal] = useState<{title: string, message: string} | null>(null);
+  const [liveParticipants, setLiveParticipants] = useState<LiveParticipant[]>([]);
 
   const currentScreen = screenStack[screenStack.length - 1];
   
@@ -52,23 +57,27 @@ const App: React.FC = () => {
     setScreenStack([screen]);
   };
 
-  const fetchAndSetChallenge = async () => {
+  const fetchAndSetChallenge = useCallback(async (currentLocale: string) => {
       const today = new Date().toDateString();
       const storedChallenge = localStorage.getItem('dailyChallenge');
       if (storedChallenge) {
           const parsed = JSON.parse(storedChallenge);
-          if (parsed.date === today) {
+          if (parsed.date === today && parsed.locale === currentLocale) {
               setDailyChallenge(parsed.challenge);
               return;
           }
       }
       
       setIsChallengeLoading(true);
-      const challenge = await getDailyChallenge();
+      const challenge = await getDailyChallenge(currentLocale);
       setDailyChallenge(challenge);
-      localStorage.setItem('dailyChallenge', JSON.stringify({ date: today, challenge }));
+      localStorage.setItem('dailyChallenge', JSON.stringify({ 
+        date: today, 
+        challenge,
+        locale: currentLocale 
+      }));
       setIsChallengeLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -76,36 +85,42 @@ const App: React.FC = () => {
         const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
-          // Sync email from Auth to Firestore if they differ. This handles verified email changes.
           if (firebaseUser.email && userProfile.email !== firebaseUser.email) {
-            console.log("Email mismatch detected. Syncing from Auth to Firestore.");
             await updateUserProfile(firebaseUser.uid, { email: firebaseUser.email });
             userProfile.email = firebaseUser.email;
+          }
+
+          // Persistence Fix: The user just selected a language on Login Screen.
+          // This choice is in LocalStorage. We must enforce it over the old DB value.
+          const activeAppLocale = localStorage.getItem('appLocale') as LanguageCode;
+          
+          if (activeAppLocale && userProfile.language !== activeAppLocale) {
+             // User explicitly picked a new language during this session/login
+             await updateUserProfile(firebaseUser.uid, { language: activeAppLocale });
+             userProfile.language = activeAppLocale;
+          } else if (userProfile.language && !activeAppLocale) {
+             // First time on this device, use DB setting
+             setLocale(userProfile.language as LanguageCode);
           }
 
           setUser(userProfile);
           setPendingFirebaseUser(null);
           handleResetStack(Screen.MainMenu);
-          fetchAndSetChallenge();
+          fetchAndSetChallenge(userProfile.language || 'en');
         } else {
-          // Auth user exists but profile doc is missing.
           const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
           const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
           const isNewUser = Math.abs(creationTime - lastSignInTime) < 5000;
 
           if (isNewUser) {
-            // This is a new user who needs to create their profile.
             setPendingFirebaseUser(firebaseUser);
             handleResetStack(Screen.CreateProfile);
           } else {
-            // This is an established user whose profile is genuinely missing. This is an error state.
-            console.error(`User ${firebaseUser.uid} is authenticated but has no profile. Forcing logout.`);
             await signOut(auth);
-            sessionStorage.setItem('registrationError', 'Your user profile could not be found. Please contact support.');
+            sessionStorage.setItem('registrationError', t('error.profile_missing'));
           }
         }
       } else {
-        // User is logged out.
         setUser(null);
         setPendingFirebaseUser(null);
         handleResetStack(Screen.Login);
@@ -114,7 +129,13 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [t, fetchAndSetChallenge, setLocale]); 
+
+  useEffect(() => {
+    if (user) {
+      fetchAndSetChallenge(locale);
+    }
+  }, [locale, user, fetchAndSetChallenge]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -127,7 +148,7 @@ const App: React.FC = () => {
 
   const handleMatchEnd = async (result: MatchResult) => {
     if (user) {
-        const playerRank = result.standings.findIndex(p => !p.isBot) + 1;
+        const playerRank = result.standings.findIndex(p => p.id === user.id) + 1;
         const isWin = playerRank === 1;
         const isTop5 = playerRank <= 5;
 
@@ -144,16 +165,21 @@ const App: React.FC = () => {
                 const updatedChallenge = { ...dailyChallenge, progress: newProgress, isCompleted };
                 setDailyChallenge(updatedChallenge);
                 const today = new Date().toDateString();
-                localStorage.setItem('dailyChallenge', JSON.stringify({ date: today, challenge: updatedChallenge }));
+                localStorage.setItem('dailyChallenge', JSON.stringify({ 
+                  date: today, 
+                  challenge: updatedChallenge,
+                  locale 
+                }));
             }
         }
         
-        // Update stats and Euros in Firestore atomically
-        await updatePlayerStats(user.id, isWin, playerRank, user.country, result.eurosEarned);
+        await updatePlayerStats(user.id, isWin, playerRank, user.country, result.eurosEarned, result.isLive);
 
         const newStats = { ...user.stats };
-        newStats.matchesPlayed += 1;
-        if (isWin) newStats.wins += 1;
+        if (result.isLive) {
+            newStats.matchesPlayed += 1;
+            if (isWin) newStats.wins += 1;
+        }
 
         setUser({
             ...user,
@@ -169,6 +195,7 @@ const App: React.FC = () => {
   const handleResultsContinue = () => {
     setMatchResult(null);
     setMatchLoadout(null);
+    setLiveParticipants([]);
     handleResetStack(Screen.MainMenu);
   };
 
@@ -178,18 +205,22 @@ const App: React.FC = () => {
         const updatedChallenge = {...dailyChallenge, isClaimed: true};
         setDailyChallenge(updatedChallenge);
         const today = new Date().toDateString();
-        localStorage.setItem('dailyChallenge', JSON.stringify({ date: today, challenge: updatedChallenge }));
+        localStorage.setItem('dailyChallenge', JSON.stringify({ 
+          date: today, 
+          challenge: updatedChallenge,
+          locale 
+                }));
     }
   };
 
   const handlePurchaseItem = async (itemToBuy: GameItem) => {
     if (!user) return;
     if (user.inventory.some(i => i.id === itemToBuy.id)) {
-      setInfoModal({ title: "Already Owned", message: "You already own this item." });
+      setInfoModal({ title: t('shop.owned'), message: t('error.already_owned') });
       return;
     }
     if (user.euros < itemToBuy.price) {
-      setInfoModal({ title: "Insufficient Funds", message: "You don't have enough euros to purchase this." });
+      setInfoModal({ title: t('shop.balance'), message: t('error.insufficient_funds') });
       return;
     }
 
@@ -199,20 +230,18 @@ const App: React.FC = () => {
       inventory: [...user.inventory, itemToBuy],
     };
     
-    // Only update specific fields to avoid transaction overhead in updateUserProfile.
-    // This ensures inventory/euros updates are fast and reliable.
     await updateUserProfile(user.id, {
         euros: updatedUser.euros,
         inventory: updatedUser.inventory
     });
 
     setUser(updatedUser);
-    setInfoModal({ title: "Purchase Successful", message: `Successfully purchased ${itemToBuy.name}!` });
+    setInfoModal({ title: t('common.ok'), message: t('success.profile_updated') });
   };
 
-  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string }): Promise<{ emailChanged: boolean }> => {
+  const handleUpdateProfile = async (updatedData: { displayName: string; email: string; avatar: string; country: string }) => {
     if (!user) {
-        throw new Error("User not found.");
+        throw new Error(t('error.generic'));
     }
     try {
         const hasEmailChanged = updatedData.email.toLowerCase() !== user.email.toLowerCase();
@@ -233,28 +262,24 @@ const App: React.FC = () => {
         
         return { emailChanged: hasEmailChanged };
     } catch (error: any) {
-        console.error("Error updating profile in App.tsx:", error);
-        // Robustly get the error message, whether it's from an Error object or a raw string.
-        const errorMessage = error?.message || error;
-        throw new Error(errorMessage || 'An unexpected error occurred.');
+        throw error;
     }
   };
 
   const handleDeleteProfile = async () => {
     try {
       await deleteUserAccount();
-      alert('Profile deleted.');
     } catch (error: any) {
       setInfoModal({ 
-        title: "Deletion Error", 
-        message: `Error deleting profile: ${error.message}. You may need to log in again to perform this action.`
+        title: t('common.error'), 
+        message: error.message.includes("recent-login") ? t('error.recent_login_required') : t('error.generic')
       });
     }
   };
 
   const renderScreen = () => {
     if (isAuthLoading) {
-      return <div className="min-h-screen flex items-center justify-center"><p>Loading Game...</p></div>;
+      return <div className="min-h-screen flex items-center justify-center bg-gray-900"><p className="text-gray-400 font-bold">{t('app.loading')}</p></div>;
     }
     
     if (currentScreen === Screen.Login) {
@@ -270,7 +295,6 @@ const App: React.FC = () => {
     }
     
     if (!user) {
-        // If we are not loading, not on Login/CreateProfile, and have no user, something is wrong. Default to Login.
         return <LoginScreen />;
     }
     
@@ -279,10 +303,15 @@ const App: React.FC = () => {
         return <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} />;
       case Screen.Matchmaking:
         return <MatchmakingScreen onMatchFound={() => handleNavigate(Screen.Loadout)} />;
+      case Screen.LiveMatchmaking:
+        return <LiveMatchmakingScreen user={user} onBack={handleBack} onMatchFound={(participants) => {
+            setLiveParticipants(participants);
+            handleNavigate(Screen.Loadout);
+        }} />;
       case Screen.Loadout:
         return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => handleResetStack(Screen.MainMenu)} onNavigate={handleNavigate} />;
       case Screen.MatchUI:
-        return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} />;
+        return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} />;
       case Screen.Results:
         return matchResult && <ResultsScreen result={matchResult} onContinue={handleResultsContinue} />;
       case Screen.Profile:
@@ -301,7 +330,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <main className="container mx-auto max-w-lg min-h-screen bg-gray-900 text-white">
+    <main className="container mx-auto max-w-lg min-h-screen bg-gray-900 text-white shadow-2xl overflow-x-hidden">
       {renderScreen()}
       {infoModal && (
         <ConfirmationModal
@@ -309,11 +338,19 @@ const App: React.FC = () => {
           title={infoModal.title}
           message={infoModal.message}
           onConfirm={() => setInfoModal(null)}
-          confirmText="OK"
+          confirmText={t('common.ok')}
           confirmVariant="primary"
         />
       )}
     </main>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 };
 

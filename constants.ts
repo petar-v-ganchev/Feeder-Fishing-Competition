@@ -1,20 +1,145 @@
 import type { GameItem, Loadout } from './types';
 
-export const MOCK_RODS = ['Basic Feeder Rod', 'Pro Rod 330', 'Pro Rod 360', 'Pro Rod 390', 'Distance Master 420', 'Distance Master 450'];
-export const MOCK_BAITS = ['Maggots', 'Pinkies', 'Worms', 'Corn', 'Hemp', 'Wafters (6mm)', 'Expander Pellets (8mm)'];
-export const MOCK_GROUNDBAITS = ['Roach Mix', 'Bream Mix', 'Fishmeal Mix', 'Sweet Fishmeal Mix', 'Pellets (2mm)'];
-export const MOCK_HOOK_SIZES = ['Size 18 Barbless Hooks (x10)', 'Size 16 Barbless Hooks (x10)', 'Size 14 Barbless Hooks (x10)', 'Size 12 Barbless Hooks (x10)'];
-export const MOCK_FEEDER_TYPES = ['Cage Feeder - 20g (x5)', 'Window Feeder - 30g (x5)', 'Bullet Feeder - 30g (x5)', 'Flat Method Feeder - 30g (x5)'];
+export const MOCK_RODS = ['rod_p330', 'rod_p360', 'rod_p390', 'rod_dm420', 'rod_dm450'];
+export const MOCK_BAITS = ['bt_mag', 'bt_pin', 'bt_wor', 'bt_cor', 'bt_hmp', 'bt_w6', 'bt_e8'];
+export const MOCK_GROUNDBAITS = ['gb_roach', 'gb_bream', 'gb_fm', 'gb_sfm', 'gb_p2'];
+export const MOCK_HOOK_SIZES = ['hook_b18', 'hook_b16', 'hook_b14', 'hook_b12'];
+export const MOCK_FEEDER_TYPES = ['fdr_c20', 'fdr_w30', 'fdr_b30', 'fdr_m30'];
 export const MOCK_FEEDER_TIPS = ['0.5oz', '1.0oz', '2.0oz', '3.0oz', '4.0oz', '5.0oz'];
 export const MOCK_CASTING_DISTANCES = ['Short (20m)', 'Medium (40m)', 'Long (60m)', 'Extreme (80m)'];
 export const MOCK_CASTING_INTERVALS = ['Frequent (2 mins)', 'Regular (5 mins)', 'Patient (10 mins)'];
 
-export const MOCK_FISH_SPECIES = [
-    { name: 'Roach', minWeight: 0.1, maxWeight: 0.8 },
-    { name: 'Bream', minWeight: 0.5, maxWeight: 4.0 },
-    { name: 'Carp', minWeight: 1.0, maxWeight: 10.0 },
-    { name: 'Tench', minWeight: 0.8, maxWeight: 3.0 },
-    { name: 'Perch', minWeight: 0.2, maxWeight: 1.5 },
+export interface FishSpecies {
+    name: string;
+    variant: 'Small' | 'Big';
+    minWeight: number;
+    maxWeight: number;
+    preferredRods: string[];
+    preferredReels: string[];
+    preferredLines: string[];
+    preferredHooks: string[];
+    preferredFeeders: string[];
+    preferredBaits: string[];
+    preferredGroundbaits: string[];
+    preferredAdditives: string[];
+    preferredFeederTips: string[];
+    preferredDistance: string[];
+    preferredIntervals: string[];
+}
+
+export const MOCK_FISH_SPECIES: FishSpecies[] = [
+    { 
+        name: 'Roach', variant: 'Small', minWeight: 0.1, maxWeight: 0.8,
+        preferredRods: ['rod_p330'],
+        preferredReels: ['reel_p3500'],
+        preferredLines: ['line_m22', 'line_b08'],
+        preferredHooks: ['hook_b18', 'hook_b16'],
+        preferredFeeders: ['fdr_c20', 'fdr_c30'],
+        preferredBaits: ['bt_mag', 'bt_pin', 'bt_hmp'],
+        preferredGroundbaits: ['gb_roach'],
+        preferredAdditives: ['ad_mol', 'ad_car', 'ad_van'],
+        preferredFeederTips: ['0.5oz', '1.0oz'],
+        preferredDistance: ['Short (20m)', 'Medium (40m)'],
+        preferredIntervals: ['Frequent (2 mins)']
+    },
+    { 
+        name: 'Roach', variant: 'Big', minWeight: 0.8, maxWeight: 1.6,
+        preferredRods: ['rod_p330', 'rod_p360'],
+        preferredReels: ['reel_p3500', 'reel_p4500'],
+        preferredLines: ['line_m22', 'line_m24'],
+        preferredHooks: ['hook_b16', 'hook_b14'],
+        preferredFeeders: ['fdr_c30', 'fdr_w30'],
+        preferredBaits: ['bt_wor', 'bt_cor', 'bt_hmp'],
+        preferredGroundbaits: ['gb_roach', 'gb_bream'],
+        preferredAdditives: ['ad_car', 'ad_van'],
+        preferredFeederTips: ['1.0oz', '2.0oz'],
+        preferredDistance: ['Medium (40m)', 'Long (60m)'],
+        preferredIntervals: ['Regular (5 mins)']
+    },
+    { 
+        name: 'Bream', variant: 'Small', minWeight: 0.2, maxWeight: 1.2,
+        preferredRods: ['rod_p330', 'rod_p360'],
+        preferredReels: ['reel_p3500', 'reel_p4500'],
+        preferredLines: ['line_m22', 'line_b08'],
+        preferredHooks: ['hook_b18', 'hook_b16'],
+        preferredFeeders: ['fdr_c30', 'fdr_b30'],
+        preferredBaits: ['bt_pin', 'bt_mag', 'bt_cor'],
+        preferredGroundbaits: ['gb_bream'],
+        preferredAdditives: ['ad_mol', 'ad_van'],
+        preferredFeederTips: ['0.5oz', '1.0oz'],
+        preferredDistance: ['Short (20m)', 'Medium (40m)'],
+        preferredIntervals: ['Frequent (2 mins)', 'Regular (5 mins)']
+    },
+    { 
+        name: 'Bream', variant: 'Big', minWeight: 1.2, maxWeight: 6.0,
+        preferredRods: ['rod_p360', 'rod_p390'],
+        preferredReels: ['reel_p4500', 'reel_d5500'],
+        preferredLines: ['line_m24', 'line_b10'],
+        preferredHooks: ['hook_b16', 'hook_b14'],
+        preferredFeeders: ['fdr_c40', 'fdr_w30', 'fdr_b40'],
+        preferredBaits: ['bt_wor', 'bt_cor', 'bt_e8'],
+        preferredGroundbaits: ['gb_bream', 'gb_sfm'],
+        preferredAdditives: ['ad_mol', 'ad_scop', 'ad_car'],
+        preferredFeederTips: ['1.0oz', '2.0oz'],
+        preferredDistance: ['Medium (40m)', 'Long (60m)'],
+        preferredIntervals: ['Regular (5 mins)']
+    },
+    { 
+        name: 'Carp', variant: 'Small', minWeight: 0.8, maxWeight: 4.0,
+        preferredRods: ['rod_p360', 'rod_p390'],
+        preferredReels: ['reel_p4500', 'reel_d5500'],
+        preferredLines: ['line_m24', 'line_b10'],
+        preferredHooks: ['hook_b14', 'hook_b12'],
+        preferredFeeders: ['fdr_m30', 'fdr_c40'],
+        preferredBaits: ['bt_cor', 'bt_mag', 'bt_wor'],
+        preferredGroundbaits: ['gb_fm', 'gb_sfm'],
+        preferredAdditives: ['ad_scop', 'ad_krill'],
+        preferredFeederTips: ['1.0oz', '2.0oz'],
+        preferredDistance: ['Medium (40m)', 'Long (60m)'],
+        preferredIntervals: ['Regular (5 mins)']
+    },
+    { 
+        name: 'Carp', variant: 'Big', minWeight: 4.0, maxWeight: 18.0,
+        preferredRods: ['rod_p390', 'rod_dm420', 'rod_dm450'],
+        preferredReels: ['reel_d5500', 'reel_d6500'],
+        preferredLines: ['line_m26', 'line_b12'],
+        preferredHooks: ['hook_b12', 'hook_w10'],
+        preferredFeeders: ['fdr_m40', 'fdr_d50', 'fdr_d70'],
+        preferredBaits: ['bt_cor', 'bt_w6', 'bt_e8', 'bt_w8'],
+        preferredGroundbaits: ['gb_fm', 'gb_p2', 'gb_p4'],
+        preferredAdditives: ['ad_krill', 'ad_sqd', 'ad_liv'],
+        preferredFeederTips: ['2.0oz', '3.0oz', '4.0oz'],
+        preferredDistance: ['Long (60m)', 'Extreme (80m)'],
+        preferredIntervals: ['Patient (10 mins)']
+    },
+    { 
+        name: 'Carassio', variant: 'Small', minWeight: 0.1, maxWeight: 0.8,
+        preferredRods: ['rod_p330'],
+        preferredReels: ['reel_p3500'],
+        preferredLines: ['line_m22'],
+        preferredHooks: ['hook_b18', 'hook_b16'],
+        preferredFeeders: ['fdr_c20', 'fdr_m20'],
+        preferredBaits: ['bt_mag', 'bt_pin', 'bt_wor'],
+        preferredGroundbaits: ['gb_carassio', 'gb_bream'],
+        preferredAdditives: ['ad_mol', 'ad_van'],
+        preferredFeederTips: ['0.5oz', '1.0oz'],
+        preferredDistance: ['Short (20m)', 'Medium (40m)'],
+        preferredIntervals: ['Frequent (2 mins)']
+    },
+    { 
+        name: 'Carassio', variant: 'Big', minWeight: 0.8, maxWeight: 3.5,
+        preferredRods: ['rod_p330', 'rod_p360'],
+        preferredReels: ['reel_p3500', 'reel_p4500'],
+        preferredLines: ['line_m22', 'line_m24'],
+        preferredHooks: ['hook_b16', 'hook_b14'],
+        preferredFeeders: ['fdr_c30', 'fdr_m30'],
+        preferredBaits: ['bt_e8', 'bt_wor', 'bt_cor'],
+        preferredGroundbaits: ['gb_fm', 'gb_bream', 'gb_carassio'],
+        preferredAdditives: ['ad_mol', 'ad_spc', 'ad_scop'],
+        preferredFeederTips: ['1.0oz', '2.0oz'],
+        preferredDistance: ['Short (20m)', 'Medium (40m)'],
+        preferredIntervals: ['Regular (5 mins)', 'Frequent (2 mins)']
+    },
 ];
 
 export const MOCK_COUNTRIES = [
@@ -26,17 +151,17 @@ export const MOCK_COUNTRIES = [
 ];
 
 export const DEFAULT_LOADOUT: Loadout = {
-    rod: MOCK_RODS[0],
-    reel: 'Pro Reel 3500',
-    line: '0.22 Monofilament',
-    hook: MOCK_HOOK_SIZES[1],
-    feeder: MOCK_FEEDER_TYPES[0],
-    bait: MOCK_BAITS[0],
-    groundbait: MOCK_GROUNDBAITS[0],
-    additive: 'Sweet Molasses',
-    feederTip: MOCK_FEEDER_TIPS[1],
-    castingDistance: MOCK_CASTING_DISTANCES[1],
-    castingInterval: MOCK_CASTING_INTERVALS[1],
+    rod: 'rod_p330',
+    reel: 'reel_p3500',
+    line: 'line_m22',
+    hook: 'hook_b16',
+    feeder: 'fdr_c20',
+    bait: 'bt_mag',
+    groundbait: 'gb_roach',
+    additive: 'ad_mol',
+    feederTip: '1.0oz',
+    castingDistance: 'Medium (40m)',
+    castingInterval: 'Regular (5 mins)',
 };
 
 export const MOCK_SHOP_ITEMS: GameItem[] = [
@@ -62,34 +187,34 @@ export const MOCK_SHOP_ITEMS: GameItem[] = [
     { id: 'line_b12', name: '0.12 Braided Line', type: 'Line', description: 'Heavy-duty braid for snaggy swims.', price: 20 },
 
     // Hooks
-    { id: 'hook_b18', name: 'Size 18 Barbless Hooks (x10)', type: 'Hook', description: 'Small hooks for delicate presentations.', price: 10 },
-    { id: 'hook_b16', name: 'Size 16 Barbless Hooks (x10)', type: 'Hook', description: 'Standard hook for roach and skimmers.', price: 10 },
-    { id: 'hook_b14', name: 'Size 14 Barbless Hooks (x10)', type: 'Hook', description: 'Strong wire for big bream.', price: 10 },
-    { id: 'hook_b12', name: 'Size 12 Barbless Hooks (x10)', type: 'Hook', description: 'The choice for big carp and tench.', price: 10 },
-    { id: 'hook_w14', name: 'Size 14 Wide Gape Hooks (x10)', type: 'Hook', description: 'Excellent hooking potential for baits.', price: 10 },
-    { id: 'hook_w12', name: 'Size 12 Wide Gape Hooks (x10)', type: 'Hook', description: 'A versatile wide gape for various baits.', price: 10 },
-    { id: 'hook_w10', name: 'Size 10 Wide Gape Hooks (x10)', type: 'Hook', description: 'Targeting specimen sized fish.', price: 10 },
-    { id: 'hook_w08', name: 'Size 8 Wide Gape Hooks (x10)', type: 'Hook', description: 'Strongest hook in the range.', price: 10 },
+    { id: 'hook_b18', name: 'Size 18 Barbless Hooks', type: 'Hook', description: 'Small hooks for delicate presentations.', price: 10 },
+    { id: 'hook_b16', name: 'Size 16 Barbless Hooks', type: 'Hook', description: 'Standard hook for roach and skimmers.', price: 10 },
+    { id: 'hook_b14', name: 'Size 14 Barbless Hooks', type: 'Hook', description: 'Strong wire for big bream.', price: 10 },
+    { id: 'hook_b12', name: 'Size 12 Barbless Hooks', type: 'Hook', description: 'The choice for big carp and carassio.', price: 10 },
+    { id: 'hook_w14', name: 'Size 14 Wide Gape Hooks', type: 'Hook', description: 'Excellent hooking potential for baits.', price: 10 },
+    { id: 'hook_w12', name: 'Size 12 Wide Gape Hooks', type: 'Hook', description: 'A versatile wide gape for various baits.', price: 10 },
+    { id: 'hook_w10', name: 'Size 10 Wide Gape Hooks', type: 'Hook', description: 'Targeting specimen sized fish.', price: 10 },
+    { id: 'hook_w08', name: 'Size 8 Wide Gape Hooks', type: 'Hook', description: 'Strongest hook in the range.', price: 10 },
 
     // Feeders
-    { id: 'fdr_c20', name: 'Cage Feeder - 20g (x5)', type: 'Feeder', description: 'Standard cage for shallow water.', price: 15 },
-    { id: 'fdr_c30', name: 'Cage Feeder - 30g (x5)', type: 'Feeder', description: 'Classic cage for medium depths.', price: 15 },
-    { id: 'fdr_c40', name: 'Cage Feeder - 40g (x5)', type: 'Feeder', description: 'Heavy cage for deep lakes.', price: 15 },
-    { id: 'fdr_w20', name: 'Window Feeder - 20g (x5)', type: 'Feeder', description: 'Aerodynamic for accurate casting.', price: 20 },
-    { id: 'fdr_w30', name: 'Window Feeder - 30g (x5)', type: 'Feeder', description: 'The choice for medium distance windows.', price: 20 },
-    { id: 'fdr_w40', name: 'Window Feeder - 40g (x5)', type: 'Feeder', description: 'Stability in windy conditions.', price: 20 },
-    { id: 'fdr_b20', name: 'Bullet Feeder - 20g (x5)', type: 'Feeder', description: 'Distance casting specialist.', price: 15 },
-    { id: 'fdr_b30', name: 'Bullet Feeder - 30g (x5)', type: 'Feeder', description: 'Precise delivery at medium range.', price: 15 },
-    { id: 'fdr_b40', name: 'Bullet Feeder - 40g (x5)', type: 'Feeder', description: 'Extra weight for extreme distance.', price: 15 },
-    { id: 'fdr_m20', name: 'Flat Method Feeder - 20g (x5)', type: 'Feeder', description: 'Classic method for commercials.', price: 15 },
-    { id: 'fdr_m30', name: 'Flat Method Feeder - 30g (x5)', type: 'Feeder', description: 'Excellent bait presentation.', price: 15 },
-    { id: 'fdr_m40', name: 'Flat Method Feeder - 40g (x5)', type: 'Feeder', description: 'Stability on steep lake beds.', price: 15 },
-    { id: 'fdr_p20', name: 'Pellet Method Feeder - 20g (x5)', type: 'Feeder', description: 'Specialist for pellet presentations.', price: 15 },
-    { id: 'fdr_p30', name: 'Pellet Method Feeder - 30g (x5)', type: 'Feeder', description: 'The standard pellet feeder.', price: 15 },
-    { id: 'fdr_p40', name: 'Pellet Method Feeder - 40g (x5)', type: 'Feeder', description: 'Ideal for deeper pellet fishing.', price: 15 },
-    { id: 'fdr_d50', name: 'Distance Method Feeder - 50g (x5)', type: 'Feeder', description: 'Method fishing at long range.', price: 15 },
-    { id: 'fdr_d60', name: 'Distance Method Feeder - 60g (x5)', type: 'Feeder', description: 'Extra stability at distance.', price: 15 },
-    { id: 'fdr_d70', name: 'Distance Method Feeder - 70g (x5)', type: 'Feeder', description: 'The heavy hitter for method work.', price: 15 },
+    { id: 'fdr_c20', name: 'Cage Feeder - 20g', type: 'Feeder', description: 'Standard cage for shallow water.', price: 15 },
+    { id: 'fdr_c30', name: 'Cage Feeder - 30g', type: 'Feeder', description: 'Classic cage for medium depths.', price: 15 },
+    { id: 'fdr_c40', name: 'Cage Feeder - 40g', type: 'Feeder', description: 'Heavy cage for deep lakes.', price: 15 },
+    { id: 'fdr_w20', name: 'Window Feeder - 20g', type: 'Feeder', description: 'Aerodynamic for accurate casting.', price: 20 },
+    { id: 'fdr_w30', name: 'Window Feeder - 30g', type: 'Feeder', description: 'The choice for medium distance windows.', price: 20 },
+    { id: 'fdr_w40', name: 'Window Feeder - 40g', type: 'Feeder', description: 'Stability in windy conditions.', price: 20 },
+    { id: 'fdr_b20', name: 'Bullet Feeder - 20g', type: 'Feeder', description: 'Distance casting specialist.', price: 15 },
+    { id: 'fdr_b30', name: 'Bullet Feeder - 30g', type: 'Feeder', description: 'Precise delivery at medium range.', price: 15 },
+    { id: 'fdr_b40', name: 'Bullet Feeder - 40g', type: 'Feeder', description: 'Extra weight for extreme distance.', price: 15 },
+    { id: 'fdr_m20', name: 'Flat Method Feeder - 20g', type: 'Feeder', description: 'Classic method for commercials.', price: 15 },
+    { id: 'fdr_m30', name: 'Flat Method Feeder - 30g', type: 'Feeder', description: 'Excellent bait presentation.', price: 15 },
+    { id: 'fdr_m40', name: 'Flat Method Feeder - 40g', type: 'Feeder', description: 'Stability on steep lake beds.', price: 15 },
+    { id: 'fdr_p20', name: 'Pellet Method Feeder - 20g', type: 'Feeder', description: 'Specialist for pellet presentations.', price: 15 },
+    { id: 'fdr_p30', name: 'Pellet Method Feeder - 30g', type: 'Feeder', description: 'The standard pellet feeder.', price: 15 },
+    { id: 'fdr_p40', name: 'Pellet Method Feeder - 40g', type: 'Feeder', description: 'Ideal for deeper pellet fishing.', price: 15 },
+    { id: 'fdr_d50', name: 'Distance Method Feeder - 50g', type: 'Feeder', description: 'Method fishing at long range.', price: 15 },
+    { id: 'fdr_d60', name: 'Distance Method Feeder - 60g', type: 'Feeder', description: 'Extra stability at distance.', price: 15 },
+    { id: 'fdr_d70', name: 'Distance Method Feeder - 70g', type: 'Feeder', description: 'The heavy hitter for method work.', price: 15 },
 
     // Groundbaits
     { id: 'gb_roach', name: 'Roach Mix', type: 'Groundbait', description: 'Active mix with hemp and spice.', price: 10 },
@@ -164,11 +289,11 @@ export const MOCK_SHOP_ITEMS: GameItem[] = [
 ];
 
 export const MOCK_INVENTORY_ITEMS: GameItem[] = [
-     { id: 'rod_01', name: 'Basic Feeder Rod', type: 'Rod', description: 'Your trusty starting rod.', price: 0 },
+     { id: 'rod_p330', name: 'Pro Rod 330', type: 'Rod', description: 'A reliable short-range feeder rod.', price: 0 },
      { id: 'reel_p3500', name: 'Pro Reel 3500', type: 'Reel', description: 'A basic starter reel.', price: 0 },
      { id: 'line_m22', name: '0.22 Monofilament', type: 'Line', description: 'Starter mono line.', price: 0 },
-     { id: 'hook_b16', name: 'Size 16 Barbless Hooks (x10)', type: 'Hook', description: 'Starter hooks.', price: 0 },
-     { id: 'fdr_c20', name: 'Cage Feeder - 20g (x5)', type: 'Feeder', description: 'Starter feeder.', price: 0 },
+     { id: 'hook_b16', name: 'Size 16 Barbless Hooks', type: 'Hook', description: 'Starter hooks.', price: 0 },
+     { id: 'fdr_c20', name: 'Cage Feeder - 20g', type: 'Feeder', description: 'Starter feeder.', price: 0 },
      { id: 'bt_mag', name: 'Maggots', type: 'Bait', description: 'A classic bait for all species.', price: 5 },
      { id: 'gb_fm', name: 'Fishmeal Mix', type: 'Groundbait', description: 'A standard groundbait mix.', price: 15 },
      { id: 'ad_mol', name: 'Sweet Molasses', type: 'Additive', description: 'A simple additive.', price: 0 },

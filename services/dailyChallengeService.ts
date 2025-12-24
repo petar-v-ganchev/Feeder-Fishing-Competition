@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { DailyChallenge } from "../types";
 
@@ -32,7 +31,7 @@ const challengeSchema = {
     },
     description: {
       type: Type.STRING,
-      description: 'A short, specific, and creative fishing challenge related to match performance. For example: "Enter 3 matches", "Win a match", or "Place in the top 5 in a match".',
+      description: 'A short, specific, and creative fishing challenge related to match performance. Provide this description in the language requested.',
     },
     reward: {
       type: Type.INTEGER,
@@ -40,31 +39,32 @@ const challengeSchema = {
     },
      target: {
       type: Type.INTEGER,
-      description: 'The number of actions required. For "Enter 3 matches", this is 3. For "Win a match", this is 1.',
+      description: 'The number of actions required.',
     }
   },
   required: ['challengeType', 'description', 'reward', 'target'],
 };
 
 
-export async function getDailyChallenge(): Promise<DailyChallenge> {
+export async function getDailyChallenge(locale: string = 'en'): Promise<DailyChallenge> {
   try {
     if (!process.env.API_KEY) {
       throw new Error("API_KEY not set.");
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    // Use gemini-3-flash-preview as recommended for Basic Text Tasks
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: "Generate a single, unique, and creative daily challenge for a feeder fishing game. The challenge must be about either entering a number of matches, winning a number of matches, or placing in the top 5 of a match. It should be a simple cumulative task, not 'in a row'. Provide the challenge type ('enter', 'win', 'top5'), a descriptive sentence, a fair Euro reward, and a target count.",
+      contents: `Generate a single, unique, and creative daily challenge for a feeder fishing game. 
+      The description MUST be in the following language: ${locale}.
+      The challenge must be about either entering a number of matches, winning a number of matches, or placing in the top 5 of a match. 
+      Provide the challenge type ('enter', 'win', 'top5'), the localized description, a fair Euro reward, and a target count.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: challengeSchema,
       },
     });
     
-    // response.text correctly retrieves the generated string
     const jsonString = response.text;
     const parsed = JSON.parse(jsonString);
 
@@ -80,7 +80,6 @@ export async function getDailyChallenge(): Promise<DailyChallenge> {
 
   } catch (error) {
     console.warn("Error fetching daily challenge from Gemini, using mock challenge:", error);
-    // Return a random mock challenge as a fallback
     return MOCK_CHALLENGES[Math.floor(Math.random() * MOCK_CHALLENGES.length)];
   }
 }

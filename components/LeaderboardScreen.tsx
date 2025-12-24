@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
 import { getLeaderboard, type RankedPlayer, type TimeScope } from '../services/leaderboardService';
 import type { User } from '../types';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface LeaderboardScreenProps {
   onBack: () => void;
@@ -10,13 +11,20 @@ interface LeaderboardScreenProps {
 }
 
 type CountryScope = 'Global' | 'Country';
-const TIME_SCOPES: TimeScope[] = ['Daily', 'Weekly', 'Monthly', 'All-Time'];
 
 export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, user }) => {
+  const { t } = useTranslation();
   const [countryScope, setCountryScope] = useState<CountryScope>('Country');
   const [timeScope, setTimeScope] = useState<TimeScope>('All-Time');
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const TIME_SCOPES = useMemo<{label: string, value: TimeScope}[]>(() => [
+    { label: t('leaderboard.daily'), value: 'Daily' },
+    { label: t('leaderboard.weekly'), value: 'Weekly' },
+    { label: t('leaderboard.monthly'), value: 'Monthly' },
+    { label: t('leaderboard.all_time'), value: 'All-Time' },
+  ], [t]);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -41,16 +49,16 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, us
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <Header title="Leaderboard" onBack={onBack} />
+      <Header title={t('leaderboard.title')} onBack={onBack} />
       
       <div className="flex border-b border-gray-700 mb-4">
-        {(['Country', 'Global'] as CountryScope[]).map(tab => (
+        {(['Country', 'Global'] as const).map(tab => (
             <button
                 key={tab}
-                onClick={() => setCountryScope(tab)}
+                onClick={() => setCountryScope(tab as CountryScope)}
                 className={`flex-1 py-2 text-center font-semibold transition-colors ${countryScope === tab ? 'text-white border-b-2 border-blue-500' : 'text-gray-400'}`}
             >
-                {tab}
+                {tab === 'Country' ? t('leaderboard.country') : t('leaderboard.global')}
             </button>
         ))}
       </div>
@@ -58,10 +66,10 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, us
       <div className="flex justify-center mb-4 bg-gray-800 p-1 rounded-lg">
           {TIME_SCOPES.map(scope => (
               <button 
-                key={scope}
-                onClick={() => setTimeScope(scope)}
-                className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${timeScope === scope ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
-                  {scope}
+                key={scope.value}
+                onClick={() => setTimeScope(scope.value)}
+                className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${timeScope === scope.value ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
+                  {scope.label}
               </button>
           ))}
       </div>
@@ -70,7 +78,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, us
         {isLoading ? (
             <div className="text-center text-gray-400 py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                Loading rankings...
+                {t('leaderboard.loading')}
             </div>
         ) : players.length > 0 ? (
             <ul>
@@ -88,7 +96,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack, us
                 ))}
             </ul>
         ) : (
-            <p className="text-center text-gray-500 py-8">No match data for this period.</p>
+            <p className="text-center text-gray-500 py-8">{t('leaderboard.empty')}</p>
         )}
       </Card>
     </div>

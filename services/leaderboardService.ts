@@ -1,4 +1,3 @@
-
 import { collection, query, where, getDocs, orderBy, limit, increment, doc, writeBatch, serverTimestamp, documentId } from 'firebase/firestore';
 import { db } from './firebase';
 import type { User, MatchHistory } from '../types';
@@ -184,30 +183,36 @@ export async function updatePlayerStats(
     isWin: boolean,
     rank: number,
     country: string,
-    eurosEarned: number
+    eurosEarned: number,
+    isLive: boolean = false
 ): Promise<void> {
     const batch = writeBatch(db);
 
-    // 1. Update aggregate stats on user doc (for All-Time leaderboard)
+    // 1. Update aggregate stats on user doc
     const userRef = doc(db, 'users', userId);
-    const statsUpdate = {
-        'stats.matchesPlayed': increment(1),
-        'stats.wins': increment(isWin ? 1 : 0),
+    
+    const updates: any = {
         'euros': increment(eurosEarned)
     };
-    batch.update(userRef, statsUpdate);
 
-    // 2. Create a new document in matchHistory for time-scoped leaderboards
-    const matchHistoryRef = doc(collection(db, 'matchHistory'));
-    const newMatchHistory: Omit<MatchHistory, 'id'> = {
-        userId,
-        country,
-        isWin,
-        rank,
-        timestamp: serverTimestamp()
-    };
-    batch.set(matchHistoryRef, newMatchHistory);
+    // Only track competitive stats (wins/matchesPlayed) for live matches
+    if (isLive) {
+        updates['stats.matchesPlayed'] = increment(1);
+        updates['stats.wins'] = increment(isWin ? 1 : 0);
 
+        // 2. Create a new document in matchHistory for time-scoped leaderboards
+        const matchHistoryRef = doc(collection(db, 'matchHistory'));
+        const newMatchHistory: Omit<MatchHistory, 'id'> = {
+            userId,
+            country,
+            isWin,
+            rank,
+            timestamp: serverTimestamp()
+        };
+        batch.set(matchHistoryRef, newMatchHistory);
+    }
+
+    batch.update(userRef, updates);
     await batch.commit();
 }
 
