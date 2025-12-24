@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Screen, type Loadout, type User, type GameItem } from '../types';
 import { Button } from './common/Button';
-import { Card } from './common/Card';
 import { 
     DEFAULT_LOADOUT,
     MOCK_FEEDER_TIPS,
@@ -35,9 +34,9 @@ const SelectInput: React.FC<{label: string, value: string, onChange: (e: React.C
     </div>
 );
 
-
 export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBack, user, onNavigate }) => {
   const { t } = useTranslation();
+  
   const venueFish = useMemo(() => {
     const shuffled = [...MOCK_FISH_SPECIES].sort(() => 0.5 - Math.random());
     const dominant = shuffled[0];
@@ -59,23 +58,43 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
     };
   }, [t]);
 
-  const [loadout, setLoadout] = useState<Loadout>(() => {
-    const getFirstOwnedId = (type: GameItem['type']) => user.inventory.find(i => i.type === type)?.id;
-    
-    return {
-      rod: getFirstOwnedId('Rod') || 'rod_p330',
-      reel: getFirstOwnedId('Reel') || 'reel_p3500',
-      line: getFirstOwnedId('Line') || 'line_m22',
-      hook: getFirstOwnedId('Hook') || 'hook_b16',
-      feeder: getFirstOwnedId('Feeder') || 'fdr_c20',
-      bait: getFirstOwnedId('Bait') || 'bt_mag',
-      groundbait: getFirstOwnedId('Groundbait') || 'gb_roach',
-      additive: getFirstOwnedId('Additive') || 'ad_mol',
-      feederTip: DEFAULT_LOADOUT.feederTip,
+  // Robust initialization helper
+  const getBestOwnedId = (type: GameItem['type'], defaultId: string) => {
+      const owned = user.inventory.filter(i => i.type === type);
+      if (owned.length === 0) return defaultId;
+      const foundDefault = owned.find(i => i.id === defaultId);
+      return foundDefault ? foundDefault.id : owned[0].id;
+  };
+
+  const getOwnedTip = () => {
+      const ownedTips = user.inventory.filter(i => i.id.startsWith('acc_qt'));
+      if (ownedTips.length === 0) return DEFAULT_LOADOUT.feederTip;
+      
+      const defaultOwned = ownedTips.find(i => {
+          const numeric = i.id.replace('acc_qt', '');
+          const tipVal = `${numeric.slice(0, 1)}.${numeric.slice(1)}oz`;
+          return tipVal === DEFAULT_LOADOUT.feederTip;
+      });
+      if (defaultOwned) return DEFAULT_LOADOUT.feederTip;
+
+      const firstId = ownedTips[0].id.replace('acc_qt', '');
+      return `${firstId.slice(0, 1)}.${firstId.slice(1)}oz`;
+  };
+
+  // State initialized with calculated inventory matches
+  const [loadout, setLoadout] = useState<Loadout>(() => ({
+      rod: getBestOwnedId('Rod', DEFAULT_LOADOUT.rod),
+      reel: getBestOwnedId('Reel', DEFAULT_LOADOUT.reel),
+      line: getBestOwnedId('Line', DEFAULT_LOADOUT.line),
+      hook: getBestOwnedId('Hook', DEFAULT_LOADOUT.hook),
+      feeder: getBestOwnedId('Feeder', DEFAULT_LOADOUT.feeder),
+      bait: getBestOwnedId('Bait', DEFAULT_LOADOUT.bait),
+      groundbait: getBestOwnedId('Groundbait', DEFAULT_LOADOUT.groundbait),
+      additive: getBestOwnedId('Additive', DEFAULT_LOADOUT.additive),
+      feederTip: getOwnedTip(),
       castingDistance: DEFAULT_LOADOUT.castingDistance,
       castingInterval: DEFAULT_LOADOUT.castingInterval,
-    };
-  });
+  }));
 
   const handleLoadoutChange = <K extends keyof Loadout,>(field: K, value: Loadout[K]) => {
     setLoadout(prev => ({ ...prev, [field]: value }));
@@ -86,6 +105,28 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
         .filter(i => i.type === type)
         .map(i => ({ label: t(`item.name.${i.id}`), value: i.id }));
   };
+
+  const getTipOptions = () => {
+      return MOCK_FEEDER_TIPS.filter(tip => {
+          const id = `acc_qt${tip.replace('.', '').replace('oz', '')}`;
+          return user.inventory.some(i => i.id === id);
+      }).map(opt => ({ label: t(`opt.tip.${opt}`), value: opt }));
+  };
+
+  const getDistanceOptions = () => MOCK_CASTING_DISTANCES.map(opt => {
+      let key = 'medium';
+      if (opt.includes('20m')) key = 'short';
+      if (opt.includes('60m')) key = 'long';
+      if (opt.includes('80m')) key = 'extreme';
+      return { label: t(`opt.dist.${key}`), value: opt };
+  });
+
+  const getIntervalOptions = () => MOCK_CASTING_INTERVALS.map(opt => {
+      let key = 'regular';
+      if (opt.includes('2 mins')) key = 'frequent';
+      if (opt.includes('10 mins')) key = 'patient';
+      return { label: t(`opt.int.${key}`), value: opt };
+  });
 
   const handleStartMatchInternal = () => {
     onStartMatch({
@@ -113,7 +154,6 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
         </header>
       </div>
       
-      {/* Venue Section */}
       <div className="flex-shrink-0 mb-2">
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-xl border-b-4 border-blue-600/50">
           <div className="text-center border-b border-gray-700 pb-2 mb-3">
@@ -136,102 +176,30 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
         </div>
       </div>
       
-      {/* Tackle Section */}
       <div className="flex-grow overflow-hidden flex flex-col min-h-0">
-        <div className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 shadow-inner flex flex-col justify-between overflow-y-auto">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 shadow-inner flex flex-col justify-between overflow-y-auto custom-scrollbar">
           <div className="flex flex-col space-y-0">
-              <SelectInput 
-                  label={t('match.tackle.rod')}
-                  value={loadout.rod}
-                  onChange={(e) => handleLoadoutChange('rod', e.target.value)}
-                  options={getInventoryOptions('Rod')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.reel')}
-                  value={loadout.reel}
-                  onChange={(e) => handleLoadoutChange('reel', e.target.value)}
-                  options={getInventoryOptions('Reel')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.line')}
-                  value={loadout.line}
-                  onChange={(e) => handleLoadoutChange('line', e.target.value)}
-                  options={getInventoryOptions('Line')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.hook')}
-                  value={loadout.hook}
-                  onChange={(e) => handleLoadoutChange('hook', e.target.value)}
-                  options={getInventoryOptions('Hook')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.feeder')}
-                  value={loadout.feeder}
-                  onChange={(e) => handleLoadoutChange('feeder', e.target.value)}
-                  options={getInventoryOptions('Feeder')}
-              />
-               <SelectInput 
-                  label={t('match.tackle.additive')}
-                  value={loadout.additive}
-                  onChange={(e) => handleLoadoutChange('additive', e.target.value)}
-                  options={getInventoryOptions('Additive')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.bait')}
-                  value={loadout.bait}
-                  onChange={(e) => handleLoadoutChange('bait', e.target.value)}
-                  options={getInventoryOptions('Bait')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.groundbait')}
-                  value={loadout.groundbait}
-                  onChange={(e) => handleLoadoutChange('groundbait', e.target.value)}
-                  options={getInventoryOptions('Groundbait')}
-              />
-              <SelectInput 
-                  label={t('match.tackle.feedertip')}
-                  value={loadout.feederTip}
-                  onChange={(e) => handleLoadoutChange('feederTip', e.target.value)}
-                  options={MOCK_FEEDER_TIPS.map(opt => ({label: opt, value: opt}))}
-              />
-              <SelectInput 
-                  label={t('match.tackle.distance')}
-                  value={loadout.castingDistance}
-                  onChange={(e) => handleLoadoutChange('castingDistance', e.target.value)}
-                  options={MOCK_CASTING_DISTANCES.map(opt => ({label: opt, value: opt}))}
-              />
-              <SelectInput 
-                  label={t('match.tackle.interval')}
-                  value={loadout.castingInterval}
-                  onChange={(e) => handleLoadoutChange('castingInterval', e.target.value)}
-                  options={MOCK_CASTING_INTERVALS.map(opt => ({label: opt, value: opt}))}
-              />
+              <SelectInput label={t('match.tackle.rod')} value={loadout.rod} onChange={(e) => handleLoadoutChange('rod', e.target.value)} options={getInventoryOptions('Rod')} />
+              <SelectInput label={t('match.tackle.reel')} value={loadout.reel} onChange={(e) => handleLoadoutChange('reel', e.target.value)} options={getInventoryOptions('Reel')} />
+              <SelectInput label={t('match.tackle.line')} value={loadout.line} onChange={(e) => handleLoadoutChange('line', e.target.value)} options={getInventoryOptions('Line')} />
+              <SelectInput label={t('match.tackle.hook')} value={loadout.hook} onChange={(e) => handleLoadoutChange('hook', e.target.value)} options={getInventoryOptions('Hook')} />
+              <SelectInput label={t('match.tackle.feeder')} value={loadout.feeder} onChange={(e) => handleLoadoutChange('feeder', e.target.value)} options={getInventoryOptions('Feeder')} />
+              <SelectInput label={t('match.tackle.additive')} value={loadout.additive} onChange={(e) => handleLoadoutChange('additive', e.target.value)} options={getInventoryOptions('Additive')} />
+              <SelectInput label={t('match.tackle.bait')} value={loadout.bait} onChange={(e) => handleLoadoutChange('bait', e.target.value)} options={getInventoryOptions('Bait')} />
+              <SelectInput label={t('match.tackle.groundbait')} value={loadout.groundbait} onChange={(e) => handleLoadoutChange('groundbait', e.target.value)} options={getInventoryOptions('Groundbait')} />
+              <SelectInput label={t('match.tackle.feedertip')} value={loadout.feederTip} onChange={(e) => handleLoadoutChange('feederTip', e.target.value)} options={getTipOptions()} />
+              <SelectInput label={t('match.tackle.distance')} value={loadout.castingDistance} onChange={(e) => handleLoadoutChange('castingDistance', e.target.value)} options={getDistanceOptions()} />
+              <SelectInput label={t('match.tackle.interval')} value={loadout.castingInterval} onChange={(e) => handleLoadoutChange('castingInterval', e.target.value)} options={getIntervalOptions()} />
           </div>
         </div>
       </div>
       
-      {/* Actions */}
       <div className="flex-shrink-0 mt-2 mb-1 space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <Button 
-            onClick={() => onNavigate(Screen.Inventory)} 
-            variant="secondary"
-          >
-            {t('main.inventory')}
-          </Button>
-          <Button 
-            onClick={() => onNavigate(Screen.Shop)} 
-            variant="secondary"
-          >
-            {t('main.shop')}
-          </Button>
+          <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary">{t('main.inventory')}</Button>
+          <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary">{t('main.shop')}</Button>
         </div>
-        <Button 
-          onClick={handleStartMatchInternal}
-          className="shadow-lg shadow-blue-900/40"
-        >
-          {t('match.start')}
-        </Button>
+        <Button onClick={handleStartMatchInternal} className="shadow-lg shadow-blue-900/40">{t('match.start')}</Button>
       </div>
     </div>
   );

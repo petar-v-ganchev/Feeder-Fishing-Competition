@@ -1,3 +1,4 @@
+
 import type { GameItem, Loadout } from './types';
 
 export const MOCK_RODS = ['rod_p330', 'rod_p360', 'rod_p390', 'rod_dm420', 'rod_dm450'];
@@ -270,7 +271,7 @@ export const MOCK_SHOP_ITEMS: GameItem[] = [
     { id: 'acc_stb', name: 'Side Tray (Big)', type: 'Accessory', description: 'Large surface for all your gear.', price: 100 },
     { id: 'acc_stsa', name: 'Side Tray Support Arm', type: 'Accessory', description: 'Stability for your big tray.', price: 50 },
     { id: 'acc_faf', name: 'Feeder Arm (Front)', type: 'Accessory', description: 'Adjustable front rod support.', price: 100 },
-    { id: 'acc_frb', name: 'Feeder Rest (Back)', type: 'Accessory', description: 'Support for the rod butt.', price: 100 },
+    { id: 'acc_frb', name: 'Feeder West (Back)', type: 'Accessory', description: 'Support for the rod butt.', price: 100 },
     { id: 'acc_umb', name: 'Umbrella', type: 'Accessory', description: 'Stay dry and focused.', price: 100 },
     { id: 'acc_uma', name: 'Umbrella Arm', type: 'Accessory', description: 'Attach your brolly to the box.', price: 20 },
     { id: 'acc_sb', name: 'Seat Box', type: 'Accessory', description: 'Professional match station.', price: 500 },
@@ -295,6 +296,10 @@ export const MOCK_INVENTORY_ITEMS: GameItem[] = [
      { id: 'hook_b16', name: 'Size 16 Barbless Hooks', type: 'Hook', description: 'Starter hooks.', price: 0 },
      { id: 'fdr_c20', name: 'Cage Feeder - 20g', type: 'Feeder', description: 'Starter feeder.', price: 0 },
      { id: 'bt_mag', name: 'Maggots', type: 'Bait', description: 'A classic bait for all species.', price: 5 },
-     { id: 'gb_fm', name: 'Fishmeal Mix', type: 'Groundbait', description: 'A standard groundbait mix.', price: 15 },
+     { id: 'gb_roach', name: 'Roach Mix', type: 'Groundbait', description: 'Active mix with hemp and spice.', price: 10 },
      { id: 'ad_mol', name: 'Sweet Molasses', type: 'Additive', description: 'A simple additive.', price: 0 },
+     { id: 'acc_qt10', name: 'Quivertip (1.0oz)', type: 'Accessory', description: 'Standard starter tip.', price: 0 },
+     { id: 'acc_sb', name: 'Seat Box', type: 'Accessory', description: 'Professional match station.', price: 0 },
+     { id: 'acc_ln50', name: 'Landing Net (50cm)', type: 'Accessory', description: 'All-round landing net.', price: 0 },
+     { id: 'acc_knfm', name: 'Keepnet Fine Mesh (3m)', type: 'Accessory', description: 'Soft mesh for fish safety.', price: 0 },
 ];

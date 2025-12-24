@@ -1,15 +1,11 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant, VenueCondition, GameItem } from '../types';
 import {
     MOCK_FISH_SPECIES,
-    MOCK_SHOP_ITEMS,
-    MOCK_BAITS,
-    MOCK_HOOK_SIZES,
-    MOCK_GROUNDBAITS,
     MOCK_FEEDER_TIPS,
     MOCK_CASTING_DISTANCES,
     MOCK_CASTING_INTERVALS,
-    DEFAULT_LOADOUT,
     type FishSpecies
 } from '../constants';
 import { type LiveParticipant } from '../services/liveMatchService';
@@ -371,6 +367,27 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             return user.inventory.filter(i => i.type === type).map(i => ({ label: t(`item.name.${i.id}`), value: i.id }));
         };
         
+        const getOwnedTipOptions = () => {
+            return MOCK_FEEDER_TIPS.filter(tip => {
+                const id = `acc_qt${tip.replace('.', '').replace('oz', '')}`;
+                return user.inventory.some(i => i.id === id);
+            }).map(opt => ({ label: t(`opt.tip.${opt}`), value: opt }));
+        };
+
+        const getDistanceOptions = () => MOCK_CASTING_DISTANCES.map(opt => {
+            let key = 'medium';
+            if (opt.includes('20m')) key = 'short';
+            if (opt.includes('60m')) key = 'long';
+            if (opt.includes('80m')) key = 'extreme';
+            return { label: t(`opt.dist.${key}`), value: opt };
+        });
+        const getIntervalOptions = () => MOCK_CASTING_INTERVALS.map(opt => {
+            let key = 'regular';
+            if (opt.includes('2 mins')) key = 'frequent';
+            if (opt.includes('10 mins')) key = 'patient';
+            return { label: t(`opt.int.${key}`), value: opt };
+        });
+
         return [
             { key: 'rod', label: t('match.tackle.rod'), options: getInventoryOptions('Rod') },
             { key: 'reel', label: t('match.tackle.reel'), options: getInventoryOptions('Reel') },
@@ -380,9 +397,9 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             { key: 'additive', label: t('match.tackle.additive'), options: getInventoryOptions('Additive') },
             { key: 'bait', label: t('match.tackle.bait'), options: getInventoryOptions('Bait') },
             { key: 'groundbait', label: t('match.tackle.groundbait'), options: getInventoryOptions('Groundbait') },
-            { key: 'feederTip', label: t('match.tackle.feedertip'), options: MOCK_FEEDER_TIPS.map(opt => ({label: opt, value: opt})) },
-            { key: 'castingDistance', label: t('match.tackle.distance'), options: MOCK_CASTING_DISTANCES.map(opt => ({label: opt, value: opt})) },
-            { key: 'castingInterval', label: t('match.tackle.interval'), options: MOCK_CASTING_INTERVALS.map(opt => ({label: opt, value: opt})) },
+            { key: 'feederTip', label: t('match.tackle.feedertip'), options: getOwnedTipOptions() },
+            { key: 'castingDistance', label: t('match.tackle.distance'), options: getDistanceOptions() },
+            { key: 'castingInterval', label: t('match.tackle.interval'), options: getIntervalOptions() },
         ];
     }, [user.inventory, t]);
 
@@ -429,9 +446,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                         <span className="truncate text-[8px] text-gray-400 font-medium leading-none">
                                             {(() => {
                                                 const val = p.loadout[param.key as keyof Loadout]?.toString() || '';
-                                                // Support both new 'bt_' format and legacy 'bait_' / 'rod_' numeric formats
-                                                const needsTranslation = /^(rod|reel|line|hook|fdr|bt|gb|ad|bait|acc)_/.test(val);
-                                                return needsTranslation ? t(`item.name.${val}`) : val;
+                                                const needsTranslation = /^(rod|reel|line|hook|fdr|bt|gb|ad|bait|groundbait|acc)_/.test(val);
+                                                if (needsTranslation) return t(`item.name.${val}`);
+                                                const opt = param.options.find(o => o.value === val);
+                                                return opt ? opt.label : val;
                                             })()}
                                         </span>
                                     </div>
@@ -457,11 +475,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                             <span className="text-[7px] text-gray-500 font-bold uppercase">{t('match.ui.time')}</span>
                             <span className="text-xs font-black text-red-400">{formatTime(timeLeft)}</span>
                         </div>
-                        {participantsOverride && participantsOverride.length > 0 && (
-                            <div className="hidden sm:flex flex-col items-start">
-                                <span className="text-[7px] text-red-500 font-bold uppercase">{t('live.status')}</span>
-                            </div>
-                        )}
                     </div>
                     
                     <div className="flex flex-col items-center">

@@ -85,28 +85,31 @@ const AppContent: React.FC = () => {
         const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
-          if (firebaseUser.email && userProfile.email !== firebaseUser.email) {
-            await updateUserProfile(firebaseUser.uid, { email: firebaseUser.email });
-            userProfile.email = firebaseUser.email;
-          }
-
-          // Persistence Fix: The user just selected a language on Login Screen.
-          // This choice is in LocalStorage. We must enforce it over the old DB value.
-          const activeAppLocale = localStorage.getItem('appLocale') as LanguageCode;
+          // Robust Language Synchronization
+          const appLocaleInStorage = localStorage.getItem('appLocale') as LanguageCode;
           
-          if (activeAppLocale && userProfile.language !== activeAppLocale) {
-             // User explicitly picked a new language during this session/login
-             await updateUserProfile(firebaseUser.uid, { language: activeAppLocale });
-             userProfile.language = activeAppLocale;
-          } else if (userProfile.language && !activeAppLocale) {
-             // First time on this device, use DB setting
-             setLocale(userProfile.language as LanguageCode);
+          if (userProfile.language) {
+            if (currentScreen === Screen.Login) {
+              // User manually selected a language on Login Screen, override DB
+              if (userProfile.language !== locale) {
+                await updateUserProfile(firebaseUser.uid, { language: locale });
+                userProfile.language = locale;
+              }
+            } else {
+              // Standard session, DB is source of truth
+              if (userProfile.language !== locale) {
+                setLocale(userProfile.language as LanguageCode);
+              }
+            }
+          } else {
+            // First time login, save current choice
+            await updateUserProfile(firebaseUser.uid, { language: locale });
           }
 
           setUser(userProfile);
           setPendingFirebaseUser(null);
           handleResetStack(Screen.MainMenu);
-          fetchAndSetChallenge(userProfile.language || 'en');
+          fetchAndSetChallenge(userProfile.language || locale || 'en');
         } else {
           const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
           const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
@@ -129,7 +132,7 @@ const AppContent: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [t, fetchAndSetChallenge, setLocale]); 
+  }, [t, fetchAndSetChallenge, setLocale, locale, currentScreen]); 
 
   useEffect(() => {
     if (user) {
@@ -309,7 +312,14 @@ const AppContent: React.FC = () => {
             handleNavigate(Screen.Loadout);
         }} />;
       case Screen.Loadout:
-        return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => handleResetStack(Screen.MainMenu)} onNavigate={handleNavigate} />;
+        // Use a key to force remount and re-population when user inventory changes
+        return <LoadoutScreen 
+          key={`loadout-${user.id}-${user.inventory.length}`}
+          user={user} 
+          onStartMatch={handleStartMatch} 
+          onBack={() => handleResetStack(Screen.MainMenu)} 
+          onNavigate={handleNavigate} 
+        />;
       case Screen.MatchUI:
         return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} />;
       case Screen.Results:
