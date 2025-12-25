@@ -2,10 +2,13 @@
 import type { GameItem, Loadout } from './types';
 
 export const MOCK_RODS = ['rod_p330', 'rod_p360', 'rod_p390', 'rod_dm420', 'rod_dm450'];
+export const MOCK_REELS = ['reel_p3500', 'reel_p4500', 'reel_d5500', 'reel_d6500'];
+export const MOCK_LINES = ['line_m22', 'line_m24', 'line_m26', 'line_b08', 'line_b10', 'line_b12'];
 export const MOCK_BAITS = ['bt_mag', 'bt_pin', 'bt_wor', 'bt_cor', 'bt_hmp', 'bt_w6', 'bt_e8'];
 export const MOCK_GROUNDBAITS = ['gb_roach', 'gb_bream', 'gb_fm', 'gb_sfm', 'gb_p2'];
 export const MOCK_HOOK_SIZES = ['hook_b18', 'hook_b16', 'hook_b14', 'hook_b12'];
 export const MOCK_FEEDER_TYPES = ['fdr_c20', 'fdr_w30', 'fdr_b30', 'fdr_m30'];
+export const MOCK_ADDITIVES = ['ad_mol', 'ad_scop', 'ad_car', 'ad_van', 'ad_spc', 'ad_krill', 'ad_sqd', 'ad_liv'];
 export const MOCK_FEEDER_TIPS = ['0.5oz', '1.0oz', '2.0oz', '3.0oz', '4.0oz', '5.0oz'];
 export const MOCK_CASTING_DISTANCES = ['Short (20m)', 'Medium (40m)', 'Long (60m)', 'Extreme (80m)'];
 export const MOCK_CASTING_INTERVALS = ['Frequent (2 mins)', 'Regular (5 mins)', 'Patient (10 mins)'];
