@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant } from '../types';
 import { 
@@ -25,14 +24,20 @@ const FIPSED_PRO_NAMES = [
     "Phil Ringler", "Franco Gianotty"
 ];
 
+// Explicit widths for the grid
+const LABEL_WIDTH_PX = '90px';
+const COL_WIDTH_PX = '115px';
+const ROW_HEIGHT = 'h-[38px]';
+
 export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadout, onMatchEnd, participantsOverride }) => {
     const { t } = useTranslation();
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
     const [participants, setParticipants] = useState<MatchParticipant[]>([]);
-    const [lastCatch, setLastCatch] = useState<{weight: number, species: string} | null>(null);
     const [tacticalEff, setTacticalEff] = useState(0.5);
     
     const participantsRef = useRef(participants);
+    const initializedRef = useRef(false);
+
     useEffect(() => { participantsRef.current = participants; }, [participants]);
 
     // Calculate owned items for the player's dropdowns
@@ -50,11 +55,16 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             const id = `acc_qt${tip.replace('.', '').replace('oz', '')}`;
             return user.inventory.some(i => i.id === id);
         });
-        return tips.length > 0 ? tips : [playerLoadout.feederTip];
+        if (playerLoadout.feederTip && !tips.includes(playerLoadout.feederTip)) {
+            tips.push(playerLoadout.feederTip);
+        }
+        return tips;
     }, [user.inventory, playerLoadout.feederTip]);
 
-    // Initialize participants
+    // Initialize participants only once per mount
     useEffect(() => {
+        if (initializedRef.current) return;
+        
         const p: MatchParticipant = {
             id: user.id, 
             name: user.displayName, 
@@ -76,6 +86,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         }));
         
         setParticipants([p, ...bots]);
+        initializedRef.current = true;
     }, [user, playerLoadout]);
 
     // Match loop
@@ -99,10 +110,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 const catchChance = p.id === user.id ? 0.05 : 0.04;
                 if (Math.random() < catchChance) {
                     const weight = parseFloat((Math.random() * 1.5).toFixed(2));
-                    if (p.id === user.id) {
-                        setLastCatch({ weight, species: 'Roach' });
-                        setTimeout(() => setLastCatch(null), 3000);
-                    }
                     return { ...p, totalWeight: p.totalWeight + weight };
                 }
                 return p;
@@ -110,7 +117,29 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             setTacticalEff(0.3 + Math.random() * 0.7);
         }, 3000);
 
-        return () => { clearInterval(timer); clearInterval(sim); };
+        // Bot tactic simulation to keep the table "Live"
+        const botTacticSim = setInterval(() => {
+            setParticipants(prev => prev.map(p => {
+                if (!p.isBot) return p;
+                if (Math.random() > 0.15) return p; 
+                
+                const fields: (keyof Loadout)[] = ['castingDistance', 'castingInterval', 'feederTip', 'bait'];
+                const field = fields[Math.floor(Math.random() * fields.length)];
+                let newVal = p.loadout[field];
+                
+                if (field === 'castingDistance') newVal = MOCK_CASTING_DISTANCES[Math.floor(Math.random() * MOCK_CASTING_DISTANCES.length)];
+                if (field === 'castingInterval') newVal = MOCK_CASTING_INTERVALS[Math.floor(Math.random() * MOCK_CASTING_INTERVALS.length)];
+                if (field === 'feederTip') newVal = MOCK_FEEDER_TIPS[Math.floor(Math.random() * MOCK_FEEDER_TIPS.length)];
+                
+                return { ...p, loadout: { ...p.loadout, [field]: newVal } };
+            }));
+        }, 4000);
+
+        return () => { 
+            clearInterval(timer); 
+            clearInterval(sim); 
+            clearInterval(botTacticSim);
+        };
     }, [timeLeft, onMatchEnd, participantsOverride, user.id]);
 
     const formatTime = (seconds: number) => {
@@ -127,134 +156,156 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         ));
     };
 
-    const sorted = [...participants].sort((a,b) => b.totalWeight - a.totalWeight);
-    const rank = sorted.findIndex(s => s.id === user.id) + 1;
+    const sortedParticipants = [...participants].sort((a,b) => b.totalWeight - a.totalWeight);
+    const rank = sortedParticipants.findIndex(s => s.id === user.id) + 1;
 
-    // Helper to render table cells
-    const renderTacticRow = (label: string, field: keyof Loadout, options?: string[]) => {
-        return (
-            <tr className="border-b border-outline hover:bg-slate-50 transition-colors">
-                <td className="sticky left-0 z-20 bg-white border-r border-outline px-3 py-2 text-[10px] font-bold text-onSurfaceVariant uppercase tracking-tight whitespace-nowrap min-w-[100px]">
-                    {label}
-                </td>
-                {participants.map((p) => {
-                    const isPlayer = p.id === user.id;
-                    return (
-                        <td 
-                            key={p.id} 
-                            className={`px-2 py-1.5 border-r border-outline min-w-[130px] text-center snap-start scroll-ml-[230px]
-                                ${isPlayer ? 'sticky left-[100px] z-20 bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.05)]' : ''}`}
-                        >
-                            {isPlayer ? (
-                                <select 
-                                    value={p.loadout[field] as string}
-                                    onChange={(e) => updatePlayerTactic(field, e.target.value)}
-                                    className="w-full bg-white border border-outline rounded-small text-[10px] py-1 px-1 focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
-                                >
-                                    {options?.map(opt => (
-                                        <option key={opt} value={opt}>
-                                            {opt.includes('_') ? t(`item.name.${opt}`) : opt}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <span className="text-[10px] font-medium text-onSurface/70 truncate block max-w-[110px] mx-auto">
-                                    {p.loadout[field]?.toString().includes('_') 
-                                        ? t(`item.name.${p.loadout[field] as string}`) 
-                                        : p.loadout[field]}
-                                </span>
-                            )}
-                        </td>
-                    );
-                })}
-            </tr>
-        );
-    };
+    // Define tactical fields for the rows
+    const TACTICS_FIELDS: { label: string, field: keyof Loadout, options?: string[] }[] = [
+        { label: t('match.tackle.rod'), field: 'rod', options: ownedRods },
+        { label: t('match.tackle.reel'), field: 'reel', options: ownedReels },
+        { label: t('match.tackle.line'), field: 'line', options: ownedLines },
+        { label: t('match.tackle.hook'), field: 'hook', options: ownedHooks },
+        { label: t('match.tackle.feeder'), field: 'feeder', options: ownedFeeders },
+        { label: t('match.tackle.bait'), field: 'bait', options: ownedBaits },
+        { label: t('match.tackle.groundbait'), field: 'groundbait', options: ownedGroundbaits },
+        { label: t('match.tackle.additive'), field: 'additive', options: ownedAdditives },
+        { label: t('match.tackle.feedertip'), field: 'feederTip', options: ownedTips },
+        { label: t('match.tackle.distance'), field: 'castingDistance', options: MOCK_CASTING_DISTANCES },
+        { label: t('match.tackle.interval'), field: 'castingInterval', options: MOCK_CASTING_INTERVALS },
+    ];
+
+    const player = participants.find(p => !p.isBot);
+    const bots = participants.filter(p => p.isBot);
 
     return (
-        <div className="flex flex-col h-screen bg-white text-onSurface overflow-hidden">
-            {/* Countdown and Rank Header */}
-            <div className="bg-slate-50 border-b border-outline p-4 grid grid-cols-2 gap-px shadow-sm flex-shrink-0">
-                <div className="text-center border-r border-outline">
-                    <p className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">{t('match.ui.position')}</p>
-                    <p className="text-3xl font-black text-primary">#{rank}</p>
-                </div>
-                <div className="text-center">
-                    <p className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">{t('match.ui.time')}</p>
-                    <p className="text-3xl font-black text-primary font-mono">{formatTime(timeLeft)}</p>
+        <div className="flex flex-col h-screen bg-white text-onSurface overflow-hidden select-none">
+            {/* Stats Summary Card */}
+            <div className="mx-4 my-4 bg-slate-50 rounded-medium shadow-md border border-outline flex-shrink-0">
+                <div className="grid grid-cols-3 gap-px bg-outline/20 overflow-hidden rounded-medium">
+                    <div className="bg-slate-50 text-center py-3 flex flex-col justify-center border-r border-outline/20">
+                        <p className="text-[9px] font-bold text-onSurfaceVariant uppercase tracking-wider leading-none mb-1.5">{t('match.ui.position')}</p>
+                        <p className="text-2xl font-black text-primary leading-none">#{rank}</p>
+                    </div>
+                    
+                    <div className="bg-slate-50 text-center py-3 flex flex-col justify-center items-center px-2">
+                        <p className="text-[8px] font-bold text-onSurfaceVariant uppercase tracking-wider leading-none mb-2.5">{t('match.ui.tactical')}</p>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden shadow-inner mb-1.5">
+                            <div 
+                                className="bg-primary h-full transition-all duration-700 ease-out" 
+                                style={{ width: `${tacticalEff * 100}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-[9px] font-black text-primary leading-none">{(tacticalEff * 100).toFixed(0)}%</p>
+                    </div>
+
+                    <div className="bg-slate-50 text-center py-3 flex flex-col justify-center border-l border-outline/20">
+                        <p className="text-[9px] font-bold text-onSurfaceVariant uppercase tracking-wider leading-none mb-1.5">{t('match.ui.time')}</p>
+                        <p className="text-2xl font-black text-primary font-mono leading-none">{formatTime(timeLeft)}</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Main Interactive Table - Full Width */}
+            {/* Main Interactive Table - Split Layout */}
             <div className="flex-grow overflow-hidden flex flex-col">
-                <div className="flex-grow overflow-x-auto overflow-y-auto bg-white custom-scrollbar relative snap-x snap-mandatory">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="sticky top-0 z-30 bg-slate-100 border-b-2 border-primary/20">
-                                <th className="sticky left-0 z-40 bg-slate-100 border-r border-outline px-3 py-4 text-[10px] font-black text-primary uppercase text-left min-w-[100px]">
-                                    {t('match.ui.live_standings')}
-                                </th>
-                                {participants.map((p) => {
-                                    const isPlayer = p.id === user.id;
-                                    return (
+                <div className="flex-grow flex overflow-hidden border-t border-outline relative">
+                    
+                    {/* FIXED Column Group: Labels + Player */}
+                    <div className="flex-shrink-0 z-20 bg-white border-r border-outline shadow-[6px_0_12px_rgba(0,0,0,0.1)] overflow-hidden">
+                        <table className="border-collapse table-fixed" style={{ width: `calc(${LABEL_WIDTH_PX} + ${COL_WIDTH_PX})` }}>
+                            <thead className="bg-slate-100 border-b-2 border-primary/20">
+                                <tr className="h-16">
+                                    <th className="px-3 py-4 text-[10px] font-black text-primary uppercase text-left align-middle" style={{ width: LABEL_WIDTH_PX }}>
+                                        {t('match.ui.live_standings')}
+                                    </th>
+                                    {player && (
+                                        <th 
+                                            style={{ width: COL_WIDTH_PX }}
+                                            className="px-3 py-3 border-l border-outline text-center bg-blue-50/50"
+                                        >
+                                            <p className="text-[11px] font-black truncate max-w-[100px] mx-auto text-primary">
+                                                {t('common.you') || player.name}
+                                            </p>
+                                            <p className="text-sm font-bold text-secondary mt-1">
+                                                {player.totalWeight.toFixed(2)} kg
+                                            </p>
+                                        </th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {TACTICS_FIELDS.map(f => (
+                                    <tr key={f.field} className={`border-b border-outline ${ROW_HEIGHT} hover:bg-slate-50 transition-colors`}>
+                                        <td className="px-3 py-2 text-[10px] font-bold text-onSurfaceVariant uppercase tracking-tight whitespace-nowrap bg-white truncate" style={{ width: LABEL_WIDTH_PX }}>
+                                            {f.label}
+                                        </td>
+                                        {player && (
+                                            <td 
+                                                style={{ width: COL_WIDTH_PX }}
+                                                className="px-2 py-1.5 border-l border-outline text-center bg-blue-50/20"
+                                            >
+                                                <select 
+                                                    value={player.loadout[f.field] as string}
+                                                    onChange={(e) => updatePlayerTactic(f.field, e.target.value)}
+                                                    className="w-full bg-white border border-outline rounded-small text-[10px] py-1 px-1 focus:outline-none focus:ring-1 focus:ring-primary font-bold shadow-sm"
+                                                >
+                                                    {f.options?.map(opt => (
+                                                        <option key={opt} value={opt}>
+                                                            {opt.includes('_') ? t(`item.name.${opt}`) : opt}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* SCROLLABLE Area: All Bots side-by-side */}
+                    <div className="flex-grow overflow-x-auto custom-scrollbar bg-white">
+                        <table className="border-collapse table-auto">
+                            <thead className="bg-slate-100 border-b-2 border-primary/20">
+                                <tr className="h-16">
+                                    {bots.map((p) => (
                                         <th 
                                             key={p.id} 
-                                            className={`px-3 py-3 border-r border-outline min-w-[130px] text-center snap-start scroll-ml-[230px]
-                                                ${isPlayer ? 'sticky left-[100px] z-40 bg-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]' : ''}`}
+                                            style={{ minWidth: COL_WIDTH_PX, width: COL_WIDTH_PX }}
+                                            className="px-3 py-3 border-r border-outline text-center"
                                         >
-                                            <p className={`text-[11px] font-black truncate max-w-[110px] mx-auto ${isPlayer ? 'text-primary' : 'text-onSurface'}`}>
+                                            <p className="text-[11px] font-black truncate max-w-[100px] mx-auto text-onSurface">
                                                 {p.name}
                                             </p>
                                             <p className="text-sm font-bold text-secondary mt-1">
                                                 {p.totalWeight.toFixed(2)} kg
                                             </p>
                                         </th>
-                                    );
-                                })}
-                            </tr>
-                        </thead>
-                        <tbody className="text-[10px]">
-                            {renderTacticRow(t('match.tackle.rod'), 'rod', ownedRods)}
-                            {renderTacticRow(t('match.tackle.reel'), 'reel', ownedReels)}
-                            {renderTacticRow(t('match.tackle.line'), 'line', ownedLines)}
-                            {renderTacticRow(t('match.tackle.hook'), 'hook', ownedHooks)}
-                            {renderTacticRow(t('match.tackle.feeder'), 'feeder', ownedFeeders)}
-                            {renderTacticRow(t('match.tackle.bait'), 'bait', ownedBaits)}
-                            {renderTacticRow(t('match.tackle.groundbait'), 'groundbait', ownedGroundbaits)}
-                            {renderTacticRow(t('match.tackle.additive'), 'additive', ownedAdditives)}
-                            {renderTacticRow(t('match.tackle.feedertip'), 'feederTip', ownedTips)}
-                            {renderTacticRow(t('match.tackle.distance'), 'castingDistance', MOCK_CASTING_DISTANCES)}
-                            {renderTacticRow(t('match.tackle.interval'), 'castingInterval', MOCK_CASTING_INTERVALS)}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Catch Notification Overlay - Positioned within container */}
-                <div className="h-16 flex items-center justify-center bg-white border-t border-outline flex-shrink-0">
-                    {lastCatch ? (
-                        <div className="animate-catch-event text-center bg-secondary/5 border border-secondary/20 px-6 py-2 rounded-full">
-                            <p className="text-[10px] font-black text-secondary uppercase tracking-widest">{t('match.ui.caught')}</p>
-                            <p className="text-xl font-black text-primary">+{lastCatch.weight}kg {lastCatch.species}</p>
-                        </div>
-                    ) : (
-                        <p className="text-xs font-semibold text-onSurfaceVariant italic opacity-40">{t('match.ui.waiting')}</p>
-                    )}
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {TACTICS_FIELDS.map(f => (
+                                    <tr key={f.field} className={`border-b border-outline ${ROW_HEIGHT} hover:bg-slate-50 transition-colors`}>
+                                        {bots.map((p) => (
+                                            <td 
+                                                key={p.id} 
+                                                style={{ width: COL_WIDTH_PX }}
+                                                className="px-2 py-1.5 border-r border-outline text-center"
+                                            >
+                                                <span className="text-[10px] font-bold text-onSurface/70 truncate block max-w-[100px] mx-auto">
+                                                    {p.loadout[f.field]?.toString().includes('_') 
+                                                        ? t(`item.name.${p.loadout[f.field] as string}`) 
+                                                        : p.loadout[f.field]}
+                                                </span>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-
-            {/* Tactical Footer */}
-            <footer className="bg-slate-50 border-t border-outline p-4 flex flex-col gap-2 flex-shrink-0">
-                <div className="flex justify-between items-center text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-                    <span>{t('match.ui.tactical')}</span>
-                    <span className="text-primary">{(tacticalEff * 100).toFixed(0)}%</span>
-                </div>
-                <div className="h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                    <div 
-                        className="bg-primary h-full transition-all duration-500" 
-                        style={{ width: `${tacticalEff * 100}%` }}
-                    ></div>
-                </div>
-            </footer>
         </div>
     );
 };
