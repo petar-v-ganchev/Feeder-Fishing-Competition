@@ -19,8 +19,61 @@ import {
     writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import type { User } from '../types';
-import { MOCK_INVENTORY_ITEMS } from '../constants';
+import type { User, GameItem } from '../types';
+import { MOCK_INVENTORY_ITEMS, MOCK_SHOP_ITEMS } from '../constants';
+
+const LEGACY_ID_MAP: Record<string, string> = {
+    // Rods
+    'rod_01': 'rod_p330',
+    // Reels
+    'reel_01': 'reel_p3500',
+    // Lines
+    'line_01': 'line_m22',
+    // Hooks
+    'hook_01': 'hook_b16',
+    // Feeders
+    'feeder_01': 'fdr_c20',
+    // Groundbaits
+    'groundbait_01': 'gb_roach',
+    'groundbait_02': 'gb_bream',
+    'groundbait_03': 'gb_carassio',
+    'groundbait_04': 'gb_fm',
+    // Baits
+    'bait_01': 'bt_mag',
+    'bait_02': 'bt_pin',
+    'bait_03': 'bt_wor',
+    'bait_04': 'bt_cor',
+    'bait_05': 'bt_hmp',
+    // Additives
+    'additive_01': 'ad_mol',
+    // Accessories
+    'accessory_01': 'acc_knfm',
+};
+
+/**
+ * Migrates old item IDs to new format to prevent translation misses.
+ * This runs every time a profile is loaded to clean up any stale data in the cloud.
+ */
+function migrateUserData(user: User): User {
+    let needsUpdate = false;
+    const migratedInventory = user.inventory.map(item => {
+        if (LEGACY_ID_MAP[item.id]) {
+            needsUpdate = true;
+            // Find the replacement item details from shop to maintain current metadata
+            const replacement = MOCK_SHOP_ITEMS.find(i => i.id === LEGACY_ID_MAP[item.id]);
+            return replacement || { ...item, id: LEGACY_ID_MAP[item.id] };
+        }
+        return item;
+    });
+
+    if (needsUpdate) {
+        const updatedUser = { ...user, inventory: migratedInventory };
+        // Silently update Firestore so migration only happens once
+        updateUserProfile(user.id, { inventory: migratedInventory }).catch(console.error);
+        return updatedUser;
+    }
+    return user;
+}
 
 interface CompleteRegistrationParams {
     uid: string;
@@ -30,10 +83,6 @@ interface CompleteRegistrationParams {
     language: string;
 }
 
-/**
- * Creates the user profile document in Firestore and a corresponding document
- * in the 'displayNames' collection to enforce uniqueness. This is done transactionally.
- */
 export async function completeRegistration(params: CompleteRegistrationParams): Promise<User> {
     const { uid, displayName, email, country, language } = params;
 
@@ -63,7 +112,6 @@ export async function completeRegistration(params: CompleteRegistrationParams): 
             const userRef = doc(db, "users", uid);
             const displayNameRef = doc(db, "displayNames", lowerCaseName);
 
-            // Check for uniqueness inside the transaction to prevent race conditions.
             const displayNameDoc = await transaction.get(displayNameRef);
             if (displayNameDoc.exists()) {
                 throw new Error("This display name is already taken. Please choose another.");
@@ -82,33 +130,32 @@ export async function completeRegistration(params: CompleteRegistrationParams): 
     return newUser;
 }
 
-
 interface LoginUserParams {
     email: string;
     password?: string;
 }
 
+// Fix: Destructured params to correctly access email, password and rememberMe
 export async function loginUser(params: LoginUserParams & { rememberMe: boolean }) {
-    if (!params.password) {
+    const { email, password, rememberMe } = params;
+    if (!password) {
         throw new Error("Password is required to log in.");
     }
-    const persistenceType = params.rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    const persistenceType = rememberMe ? browserLocalPersistence : browserSessionPersistence;
     await setPersistence(auth, persistenceType);
-    await signInWithEmailAndPassword(auth, params.email, params.password);
+    await signInWithEmailAndPassword(auth, email, password);
 }
-
 
 export async function getUserProfile(uid: string): Promise<User | null> {
     const docRef = doc(db, "users", uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-        return docSnap.data() as User;
+        return migrateUserData(docSnap.data() as User);
     } else {
         return null;
     }
 }
-
 
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
     const userRef = doc(db, "users", uid);
@@ -144,7 +191,6 @@ export async function updateUserProfile(uid: string, data: Partial<User>): Promi
         await updateDoc(userRef, data);
     }
 }
-
 
 export async function deleteUserAccount(): Promise<void> {
     const firebaseUser = auth.currentUser;

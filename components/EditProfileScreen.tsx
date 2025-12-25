@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
+import { Header } from './common/Header';
 import { MOCK_COUNTRIES } from '../constants';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -100,76 +101,71 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
     };
 
     return (
-        <div className="flex flex-col h-full p-6 gap-6 overflow-y-auto bg-white">
-            <header className="relative flex items-center justify-center border-b border-outline pb-4">
-                <button 
-                  onClick={onBack} 
-                  className="absolute left-0 p-1 text-primary hover:text-secondary transition-colors"
-                  aria-label="Go back"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <h1 className="text-xl font-bold text-primary">{t('edit.title')}</h1>
-            </header>
+        <div className="flex flex-col min-h-screen bg-white">
+            <Header title={t('edit.title')} onBack={onBack} />
             
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <InputField 
-                    label={t('edit.display_name')}
-                    id="displayName"
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    hasError={!!error && !displayName.trim()}
-                />
+            <div className="px-6 flex flex-col pb-6">
+                <form id="editProfileForm" onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <InputField 
+                        label={t('edit.display_name')}
+                        id="displayName"
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        hasError={!!error && !displayName.trim()}
+                    />
 
-                <SelectField
-                    label={t('edit.country')}
-                    id="country"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                >
-                    {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </SelectField>
+                    <SelectField
+                        label={t('edit.country')}
+                        id="country"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                    >
+                        {MOCK_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </SelectField>
 
-                <SelectField
-                    label={t('common.language')}
-                    id="language"
-                    value={selectedLanguage}
-                    onChange={(e) => setSelectedLanguage(e.target.value)}
-                >
-                    {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                </SelectField>
+                    <SelectField
+                        label={t('common.language')}
+                        id="language"
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value)}
+                    >
+                        {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                    </SelectField>
 
-                <InputField 
-                    label={t('edit.email')}
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled
-                />
-                
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left">
-                        <span className="leading-none py-1">{error}</span>
-                    </div>
-                )}
+                    <InputField 
+                        label={t('edit.email')}
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled
+                    />
+                    
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left">
+                            <span className="leading-none py-1">{error}</span>
+                        </div>
+                    )}
+                </form>
 
-                <div className="flex flex-col gap-2 pt-4">
-                    <Button type="submit" disabled={isLoading}>{isLoading ? '...' : t('edit.save')}</Button>
+                <div className="mt-6 flex flex-col gap-3">
+                    <Button 
+                      form="editProfileForm" 
+                      type="submit" 
+                      disabled={isLoading}
+                    >
+                        {isLoading ? '...' : t('edit.save')}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setIsDeleteConfirmOpen(true)}
+                        className="!text-secondary"
+                    >
+                        {t('edit.delete')}
+                    </Button>
                 </div>
-            </form>
-
-            <div className="mt-auto text-center pb-4">
-                <button
-                    type="button"
-                    onClick={() => setIsDeleteConfirmOpen(true)}
-                    className="text-xs font-bold text-red-500 opacity-60 hover:opacity-100 transition-opacity no-underline"
-                >
-                    {t('edit.delete')}
-                </button>
             </div>
 
             <ConfirmationModal
@@ -180,7 +176,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, onBa
                 onCancel={() => setIsDeleteConfirmOpen(false)}
                 confirmText={t('edit.delete')}
                 cancelText={t('nav.back')}
-                confirmVariant="danger"
+                confirmVariant="primary"
             />
         </div>
     );

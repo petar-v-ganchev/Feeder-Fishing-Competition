@@ -283,7 +283,7 @@ export const MOCK_SHOP_ITEMS: GameItem[] = [
     { id: 'acc_b40', name: 'Bucket (40l)', type: 'Accessory', description: 'Large bucket for big matches.', price: 35 },
     { id: 'acc_r2', name: 'Riddle (2mm)', type: 'Accessory', description: 'Fine riddle for small seeds.', price: 15 },
     { id: 'acc_r4', name: 'Riddle (4mm)', type: 'Accessory', description: 'Standard groundbait riddle.', price: 15 },
-    { id: 'acc_r6', name: 'Riddle (6mm)', type: 'Accessory', description: 'Coarse riddle for pellet prep.', price: 15 },
+    { id: 'acc_r6', name: 'Riddle (6mm)', type: 'Accessory', description: 'Coarse pellet riddle.', price: 15 },
     { id: 'acc_rrkf', name: 'Rod Rest Kit (Front)', type: 'Accessory', description: 'High stability front rests.', price: 60 },
     { id: 'acc_rrkb', name: 'Rod Rest Kit (Back)', type: 'Accessory', description: 'Gripping back rests.', price: 30 },
     { id: 'acc_plt', name: 'Platform', type: 'Accessory', description: 'Fish comfortably in the water.', price: 250 },

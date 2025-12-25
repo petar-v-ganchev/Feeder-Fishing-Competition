@@ -71,7 +71,6 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
         return () => {
             isMounted = false;
             unsubscribe();
-            // Using user.id directly in cleanup is safe as it's captured in closure
             leaveLiveSession(user.id, currentSessionTime).catch(e => console.warn("Error leaving session:", e));
         };
     }, [currentSessionTime, user]);
@@ -84,53 +83,55 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
     };
 
     return (
-        <div className="p-4 max-md mx-auto flex flex-col min-h-screen">
+        <div className="flex flex-col min-h-screen bg-white">
             <Header title={t('live.title')} onBack={onBack} />
             
-            <Card className="mb-6 text-center border-blue-500/50">
-                <p className="text-gray-400 text-sm font-bold tracking-widest mb-1">{t('live.next_session')}</p>
-                <h2 className="text-5xl font-black text-blue-400 mb-2 font-mono">{formatCountdown(timeLeft)}</h2>
-                <div className="flex flex-col items-center">
-                    <p className="text-[9px] text-blue-500 font-bold mt-1">
-                        {t('live.scheduled')} {new Date(currentSessionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                </div>
-            </Card>
+            <div className="px-6 flex flex-col flex-grow pb-6">
+                <Card className="mb-6 text-center border-primary shadow-lg bg-slate-50">
+                    <p className="text-[10px] font-bold text-onSurfaceVariant mb-1">{t('live.next_session')}</p>
+                    <h2 className="text-5xl font-black text-primary mb-2 font-mono tracking-tighter">{formatCountdown(timeLeft)}</h2>
+                    <div className="flex flex-col items-center">
+                        <p className="text-[9px] text-primary font-bold opacity-60">
+                            {t('live.scheduled')} {new Date(currentSessionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                </Card>
 
-            <Card className="flex-grow mb-6 flex flex-col overflow-hidden">
-                <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-4">
-                    <h3 className="font-bold">{t('live.joined_anglers')}</h3>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${participants.length >= 2 ? 'bg-green-600' : 'bg-red-600'} text-white`}>
-                        {participants.length} / {t('live.min_required')}
-                    </span>
-                </div>
-                
-                <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar">
-                    {participants.map(p => (
-                        <div key={p.id} className="flex items-center gap-3 p-2 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                            {p.avatar && p.avatar.startsWith('data:image/') ? (
-                                <img src={p.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                            ) : (
-                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">
-                                    {p.avatar || p.displayName.charAt(0)}
+                <Card className="flex-grow mb-6 flex flex-col overflow-hidden bg-white border-outline">
+                    <div className="flex justify-between items-center border-b border-outline pb-3 mb-4">
+                        <h3 className="text-xs font-bold text-primary">{t('live.joined_anglers')}</h3>
+                        <span className={`px-2 py-0.5 rounded-small text-[10px] font-bold ${participants.length >= 2 ? 'bg-green-600' : 'bg-secondary'} text-white`}>
+                            {participants.length} / {t('live.min_required')}
+                        </span>
+                    </div>
+                    
+                    <div className="flex-grow overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                        {participants.map(p => (
+                            <div key={p.id} className={`flex items-center gap-3 p-3 rounded-medium border ${p.id === user.id ? 'bg-primary/5 border-primary/20' : 'bg-slate-50 border-outline'}`}>
+                                {p.avatar && p.avatar.startsWith('data:image/') ? (
+                                    <img src={p.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-outline" />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">
+                                        {p.avatar || p.displayName.charAt(0)}
+                                    </div>
+                                )}
+                                <div className="flex-grow">
+                                    <p className="text-xs font-bold text-primary leading-tight">{p.displayName}</p>
+                                    <p className="text-[9px] font-bold text-onSurfaceVariant">{p.country}</p>
                                 </div>
-                            )}
-                            <div className="flex-grow">
-                                <p className="text-sm font-bold leading-tight">{p.displayName}</p>
-                                <p className="text-[10px] text-gray-500">{p.country}</p>
+                                {p.id === user.id && (
+                                    <span className="text-[9px] font-black text-primary italic opacity-50">You</span>
+                                )}
                             </div>
-                            {p.id === user.id && (
-                                <span className="text-[10px] font-bold text-blue-400 italic">You</span>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </Card>
+                        ))}
+                    </div>
+                </Card>
 
-            <div className="space-y-3 text-center">
-                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                    <p className="text-green-400 font-bold mb-2 animate-pulse">✓ {t('live.enrolled')}</p>
-                    <p className="text-[11px] text-gray-400">{t('live.footer')}</p>
+                <div className="flex flex-col gap-3">
+                    <div className="bg-slate-100 border border-outline rounded-medium p-4 text-center">
+                        <p className="text-green-600 font-bold text-xs mb-1 animate-pulse">✓ {t('live.enrolled')}</p>
+                        <p className="text-[10px] text-onSurfaceVariant font-medium leading-relaxed">{t('live.footer')}</p>
+                    </div>
                 </div>
             </div>
         </div>

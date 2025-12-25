@@ -2,6 +2,7 @@ import React from 'react';
 import { Screen, type User, type DailyChallenge } from '../types';
 import { Button } from './common/Button';
 import { Card } from './common/Card';
+import { Header } from './common/Header';
 import { useTranslation } from '../i18n/LanguageContext';
 
 interface MainMenuScreenProps {
@@ -16,13 +17,15 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
   const { t, formatCurrency } = useTranslation();
 
   return (
-    <div className="flex flex-col min-h-screen p-6 bg-white text-onSurface">
-      <header className="py-6 mb-6 text-center">
-        <p className="text-[10px] font-bold text-onSurfaceVariant mb-1">{t('main.welcome')}</p>
-        <h1 className="text-2xl font-bold truncate max-w-full text-primary">{user.displayName}</h1>
-      </header>
+    <div className="flex flex-col min-h-screen bg-white text-onSurface">
+      <Header title={t('app.title')} />
       
-      <div className="flex-grow flex flex-col gap-4 w-full max-w-md mx-auto">
+      <div className="flex-grow flex flex-col gap-4 w-full px-6 pb-6">
+        <header className="py-2 text-center">
+          <p className="text-[10px] font-bold text-onSurfaceVariant mb-1">{t('main.welcome')}</p>
+          <h1 className="text-xl font-bold truncate max-w-full text-primary">{user.displayName}</h1>
+        </header>
+
         <div className="bg-primary p-6 rounded-medium text-white shadow-sm flex justify-between items-center">
           <div>
             <p className="text-[10px] font-bold opacity-70">{t('shop.balance')}</p>
@@ -33,7 +36,12 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
           </div>
         </div>
 
-        {dailyChallenge && (
+        {isChallengeLoading ? (
+            <Card variant="tonal" className="border-l-4 border-l-secondary/30 animate-pulse">
+                <div className="h-3 w-20 bg-slate-200 rounded mb-2"></div>
+                <div className="h-5 w-full bg-slate-200 rounded"></div>
+            </Card>
+        ) : dailyChallenge ? (
             <Card variant="tonal" className="border-l-4 border-l-secondary">
                 <div className="flex justify-between items-start">
                   <div className="flex-grow pr-2">
@@ -46,17 +54,17 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ user, onNavigate
                     <Button onClick={onClaimReward} className="h-8 text-[10px] mt-3">{t('main.challenge.claim')}</Button>
                 )}
             </Card>
-        )}
+        ) : null}
 
-        <div className="grid grid-cols-1 gap-3 mt-4">
-            <Button onClick={() => onNavigate(Screen.Matchmaking)} className="h-14">{t('main.practice')}</Button>
+        <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={() => onNavigate(Screen.Loadout)} className="h-14">{t('main.practice')}</Button>
             <Button onClick={() => onNavigate(Screen.LiveMatchmaking)} variant="secondary" className="h-14 border-primary text-primary">{t('main.live')}</Button>
             
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary" className="h-12 text-xs">{t('main.inventory')}</Button>
-              <Button onClick={() => onNavigate(Screen.Leaderboard)} variant="secondary" className="h-12 text-xs">{t('main.leaderboard')}</Button>
-              <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary" className="h-12 text-xs">{t('main.shop')}</Button>
-              <Button onClick={() => onNavigate(Screen.Profile)} variant="secondary" className="h-12 text-xs">{t('main.profile')}</Button>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary" className="h-12 border-primary text-primary">{t('main.inventory')}</Button>
+              <Button onClick={() => onNavigate(Screen.Leaderboard)} variant="secondary" className="h-12 border-primary text-primary">{t('main.leaderboard')}</Button>
+              <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary" className="h-12 border-primary text-primary">{t('main.shop')}</Button>
+              <Button onClick={() => onNavigate(Screen.Profile)} variant="secondary" className="h-12 border-primary text-primary">{t('main.profile')}</Button>
             </div>
         </div>
       </div>

@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MatchResult, User, Loadout, MatchParticipant, VenueCondition, GameItem } from '../types';
 import { MOCK_FISH_SPECIES, type FishSpecies } from '../constants';
 import { type LiveParticipant } from '../services/liveMatchService';
 import { useTranslation } from '../i18n/LanguageContext';
+import { Header } from './common/Header';
 import { Card } from './common/Card';
 
 interface MatchUIScreenProps {
@@ -12,7 +14,24 @@ interface MatchUIScreenProps {
   participantsOverride?: LiveParticipant[];
 }
 
-const MATCH_DURATION = 90;
+const MATCH_DURATION = 600; // 10 minutes in seconds
+
+const FIPSED_PRO_NAMES = [
+    "Stevie Ringler",
+    "Lee Edvards",
+    "Gabor Domer",
+    "Jense Koschnic",
+    "Micky Vialls",
+    "Angel De Pascali",
+    "Arjen Klopp",
+    "Vadim Yakubow",
+    "Matt Weigand",
+    "Jan v. Shendel",
+    "Tamas Waltermann",
+    "Adame Wakeline",
+    "Phil Ringler",
+    "Franco Gianotty"
+];
 
 export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadout, onMatchEnd, participantsOverride }) => {
     const { t } = useTranslation();
@@ -28,9 +47,18 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         const p: MatchParticipant = {
             id: user.id, name: user.displayName, isBot: false, loadout: playerLoadout, totalWeight: 0, catchStreak: 0, lastCatchTime: 0
         };
-        const bots = Array.from({ length: 5 }).map((_, i) => ({
-            id: `bot_${i}`, name: `BOT_${i}`, isBot: true, loadout: playerLoadout, totalWeight: 0, catchStreak: 0, lastCatchTime: 0
+        
+        // Use modified Pro names for bots, ensuring we have 14 bots (Total 15 participants)
+        const bots = FIPSED_PRO_NAMES.map((name, i) => ({
+            id: `bot_${i}`, 
+            name: name, 
+            isBot: true, 
+            loadout: playerLoadout, 
+            totalWeight: 0, 
+            catchStreak: 0, 
+            lastCatchTime: 0
         }));
+        
         setParticipants([p, ...bots]);
     }, [user, playerLoadout]);
 
@@ -62,26 +90,32 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return () => { clearInterval(timer); clearInterval(sim); };
     }, [timeLeft]);
 
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
     const player = participants.find(p => p.id === user.id);
     const sorted = [...participants].sort((a,b) => b.totalWeight - a.totalWeight);
     const rank = sorted.findIndex(s => s.id === user.id) + 1;
 
     return (
         <div className="flex flex-col h-screen bg-slate-100 text-onSurface overflow-hidden">
-            {/* Scoreboard Bar */}
-            <header className="bg-primary text-white p-4 grid grid-cols-2 gap-px shadow-md">
+            {/* Header hidden per request */}
+            
+            <div className="bg-primary text-white p-4 grid grid-cols-2 gap-px shadow-md flex-shrink-0">
                 <div className="text-center border-r border-white/20">
                     <p className="text-[10px] font-bold opacity-60">{t('match.ui.position')}</p>
                     <p className="text-3xl font-bold">#{rank}</p>
                 </div>
                 <div className="text-center">
                     <p className="text-[10px] font-bold opacity-60">{t('match.ui.time')}</p>
-                    <p className="text-3xl font-bold">{timeLeft}s</p>
+                    <p className="text-3xl font-bold font-mono">{formatTime(timeLeft)}</p>
                 </div>
-            </header>
+            </div>
 
-            <div className="p-4 flex flex-col gap-4 flex-grow overflow-hidden">
-                {/* Stats Summary */}
+            <div className="p-6 flex flex-col gap-4 flex-grow overflow-hidden">
                 <div className="grid grid-cols-2 gap-3">
                     <Card variant="elevated" className="py-3 text-center border-b-2 border-b-secondary">
                         <p className="text-[10px] font-bold text-onSurfaceVariant">{t('match.ui.total')}</p>
@@ -93,7 +127,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     </Card>
                 </div>
 
-                {/* Standings Table */}
                 <div className="flex-grow flex flex-col min-h-0 bg-white rounded-medium shadow-sm border border-outline overflow-hidden">
                     <div className="bg-slate-50 border-b border-outline px-4 py-2 flex justify-between">
                         <span className="text-[10px] font-bold text-onSurfaceVariant">{t('match.ui.live_standings')}</span>
@@ -114,7 +147,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     </div>
                 </div>
 
-                {/* Event Tracker */}
                 <div className="h-24 flex items-center justify-center bg-white border border-outline rounded-medium overflow-hidden">
                     {lastCatch ? (
                         <div className="animate-catch-event text-center">
@@ -127,8 +159,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 </div>
             </div>
 
-            {/* Tactical Footer */}
-            <footer className="bg-slate-800 text-white p-4 flex flex-col gap-2">
+            <footer className="bg-slate-800 text-white p-6 flex flex-col gap-2 flex-shrink-0">
                 <div className="flex justify-between items-center text-[10px] font-bold">
                     <span>{t('match.ui.tactical')}</span>
                     <span>{(tacticalEff * 100).toFixed(0)}%</span>

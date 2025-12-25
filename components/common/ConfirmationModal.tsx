@@ -25,12 +25,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-m bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="w-full max-w-sm animate-in fade-in zoom-in duration-200">
-        <div className="bg-surface border border-outline rounded-large shadow-elevation-3 p-[20px]">
-          <h2 className="text-title-large font-medium text-onSurface mb-s">{title}</h2>
-          <p className="text-body-secondary text-onSurfaceVariant mb-l">{message}</p>
-          <div className="flex flex-col gap-s">
+        <div className="bg-surface border border-outline rounded-large shadow-lg p-6">
+          <h2 className="text-xl font-bold text-onSurface mb-2">{title}</h2>
+          <p className="text-sm text-onSurfaceVariant mb-6">{message}</p>
+          <div className="flex flex-col gap-3">
             <Button onClick={onConfirm} variant={confirmVariant}>
               {confirmText}
             </Button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
+import { Header } from './common/Header';
 import { loginUser } from '../services/userService';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -15,7 +16,6 @@ export const LoginScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear error when user changes inputs
   useEffect(() => {
     if (error) setError(null);
   }, [email, password, isRegistering]);
@@ -64,86 +64,89 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen p-8 justify-center bg-white">
-      <div className="absolute top-6 right-6">
-        <select 
-          value={locale} 
-          onChange={(e) => setLocale(e.target.value as LanguageCode)}
-          className="bg-slate-50 text-onSurfaceVariant border border-outline text-xs p-2 rounded-small outline-none"
-        >
-          {languages.map(l => (
-            <option key={l.code} value={l.code}>{l.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">
-          {t('login.title')}
-        </h1>
-        <div className="w-12 h-1 bg-secondary mx-auto mt-2"></div>
-        <h2 className="text-sm font-semibold text-onSurfaceVariant mt-2">
-          {t('login.subtitle')}
-        </h2>
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-sm mx-auto">
-        <div className="space-y-4">
-          <div className="space-y-1">
-              <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.email')}</label>
-              <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full bg-slate-50 border ${error && !email ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
-                  placeholder={t('login.placeholder.email')}
-              />
-          </div>
-          <div className="space-y-1">
-              <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.password')}</label>
-              <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full bg-slate-50 border ${error && !password ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
-                  placeholder={t('login.placeholder.password')}
-              />
-          </div>
+    <div className="flex flex-col min-h-screen bg-white">
+      <Header title={t('login.title')} />
+      
+      <div className="px-6 flex flex-col flex-grow justify-center pb-12">
+        <div className="absolute top-4 right-4 z-10">
+          <select 
+            value={locale} 
+            onChange={(e) => setLocale(e.target.value as LanguageCode)}
+            className="bg-slate-50 text-onSurfaceVariant border border-outline text-[10px] font-bold p-1 rounded-small outline-none"
+          >
+            {languages.map(l => (
+              <option key={l.code} value={l.code}>{l.name}</option>
+            ))}
+          </select>
         </div>
 
-        {!isRegistering && (
-          <div className="flex items-center gap-2 px-1">
-            <input
-              id="rememberMe"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-outline text-primary focus:ring-primary cursor-pointer"
-            />
-            <label htmlFor="rememberMe" className="text-[10px] font-bold text-onSurfaceVariant cursor-pointer">
-              {t('login.remember')}
-            </label>
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-onSurfaceVariant">
+            {t('login.subtitle')}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full">
+          <div className="space-y-4">
+            <div className="space-y-1">
+                <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.email')}</label>
+                <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`w-full bg-slate-50 border ${error && !email ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
+                    placeholder={t('login.placeholder.email')}
+                />
+            </div>
+            <div className="space-y-1">
+                <label className="text-[10px] font-bold text-onSurfaceVariant ml-1">{t('login.label.password')}</label>
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`w-full bg-slate-50 border ${error && !password ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
+                    placeholder={t('login.placeholder.password')}
+                />
+            </div>
           </div>
-        )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left animate-in fade-in slide-in-from-top-1">
-            <span className="leading-none py-1">{error}</span>
+          {!isRegistering && (
+            <div className="flex items-center gap-2 px-1">
+              <input
+                id="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-outline text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="rememberMe" className="text-[10px] font-bold text-onSurfaceVariant cursor-pointer">
+                {t('login.remember')}
+              </label>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-medium text-xs font-bold flex items-center text-left animate-in fade-in slide-in-from-top-1">
+              <span className="leading-none py-1">{error}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? t('login.status.processing') : (isRegistering ? t('login.btn.register') : t('login.btn.login'))}
+            </Button>
+
+            <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsRegistering(!isRegistering)}
+                className="h-10 text-xs"
+            >
+                {isRegistering ? t('login.tab.login') : t('login.tab.register')}
+            </Button>
           </div>
-        )}
-
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? t('login.status.processing') : (isRegistering ? t('login.btn.register') : t('login.btn.login'))}
-        </Button>
-
-        <button 
-            type="button" 
-            onClick={() => setIsRegistering(!isRegistering)}
-            className="text-xs font-bold text-onSurfaceVariant text-center hover:text-primary transition-colors no-underline"
-        >
-            {isRegistering ? t('login.tab.login') : t('login.tab.register')}
-        </button>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

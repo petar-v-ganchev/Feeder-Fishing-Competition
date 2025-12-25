@@ -7,7 +7,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, onBack }) => {
   return (
-    <header className="relative flex items-center justify-center p-4 mb-6">
+    <header className="relative flex items-center justify-center h-16 w-full px-6 mb-4 flex-shrink-0 border-b border-outline">
       {onBack && (
         <button
           onClick={onBack}
@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ title, onBack }) => {
           </svg>
         </button>
       )}
-      <h1 className="text-2xl font-bold text-center text-primary px-12">{title}</h1>
+      <h1 className="text-xl font-bold text-center text-primary px-12 truncate tracking-tight">{title}</h1>
     </header>
   );
 };

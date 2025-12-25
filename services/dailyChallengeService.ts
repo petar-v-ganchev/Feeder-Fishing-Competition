@@ -2,13 +2,13 @@ import type { DailyChallenge } from "../types";
 import { translations } from "../i18n/translations";
 
 const STATIC_CHALLENGES: Array<{ type: DailyChallenge['challengeType'], id: string, target: number, reward: number }> = [
-    { type: 'enter', id: 'ch1', target: 5, reward: 250 },
+    { type: 'enter', id: 'ch1', target: 20, reward: 250 },
     { type: 'win', id: 'ch2', target: 1, reward: 300 },
     { type: 'top5', id: 'ch3', target: 1, reward: 200 },
-    { type: 'enter', id: 'ch4', target: 3, reward: 150 },
+    { type: 'enter', id: 'ch4', target: 500, reward: 150 },
     { type: 'win', id: 'ch5', target: 3, reward: 500 },
     { type: 'enter', id: 'ch6', target: 1, reward: 100 },
-    { type: 'top5', id: 'ch7', target: 3, reward: 400 },
+    { type: 'top5', id: 'ch7', target: 1, reward: 400 },
     { type: 'win', id: 'ch8', target: 5, reward: 1000 },
     { type: 'enter', id: 'ch9', target: 10, reward: 600 },
     { type: 'top5', id: 'ch10', target: 5, reward: 800 },
@@ -28,7 +28,10 @@ export async function getDailyChallenge(locale: string = 'en'): Promise<DailyCha
     
     // Resolve localized description
     const langDict = translations[locale] || translations['en'];
-    const description = langDict[`challenge.desc.${config.id}`] || langDict[`challenge.desc.ch1`];
+    const descKey = `challenge.desc.${config.id}`;
+    const fallbackKey = `challenge.desc.ch1`;
+    
+    let description = langDict[descKey] || translations['en'][descKey] || langDict[fallbackKey] || translations['en'][fallbackKey];
 
     return {
         challengeType: config.type,
