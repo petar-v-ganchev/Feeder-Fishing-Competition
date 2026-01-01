@@ -162,7 +162,7 @@ export const DEFAULT_LOADOUT: Loadout = {
     feeder: 'fdr_c20',
     bait: 'bt_mag',
     groundbait: 'gb_roach',
-    additive: 'ad_mol',
+    additive: 'ad_mol', // Added missing default value
     feederTip: '1.0oz',
     castingDistance: 'Medium (40m)',
     castingInterval: 'Regular (5 mins)',

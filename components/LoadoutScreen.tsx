@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Screen, type Loadout, type User, type GameItem } from '../types';
 import { Button } from './common/Button';
 import { Header } from './common/Header';
@@ -10,6 +10,7 @@ import {
     MOCK_FISH_SPECIES
 } from '../constants';
 import { useTranslation } from '../i18n/LanguageContext';
+import { saveActiveLoadout, loadActiveLoadout } from '../services/tacticService';
 
 interface LoadoutScreenProps {
   onStartMatch: (loadout: Loadout) => void;
@@ -73,106 +74,97 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
   const getOwnedTip = () => {
       const ownedTips = user.inventory.filter(i => i.id.startsWith('acc_qt'));
       if (ownedTips.length === 0) return DEFAULT_LOADOUT.feederTip;
-      
-      const defaultOwned = ownedTips.find(i => {
-          const numeric = i.id.replace('acc_qt', '');
-          const tipVal = `${numeric.slice(0, 1)}.${numeric.slice(1)}oz`;
-          return tipVal === DEFAULT_LOADOUT.feederTip;
-      });
-      if (defaultOwned) return DEFAULT_LOADOUT.feederTip;
-
       const firstId = ownedTips[0].id.replace('acc_qt', '');
       return `${firstId.slice(0, 1)}.${firstId.slice(1)}oz`;
   };
 
-  const [loadout, setLoadout] = useState<Loadout>(() => ({
-      rod: getBestOwnedId('Rod', DEFAULT_LOADOUT.rod),
-      reel: getBestOwnedId('Reel', DEFAULT_LOADOUT.reel),
-      line: getBestOwnedId('Line', DEFAULT_LOADOUT.line),
-      hook: getBestOwnedId('Hook', DEFAULT_LOADOUT.hook),
-      feeder: getBestOwnedId('Feeder', DEFAULT_LOADOUT.feeder),
-      bait: getBestOwnedId('Bait', DEFAULT_LOADOUT.bait),
-      groundbait: getBestOwnedId('Groundbait', DEFAULT_LOADOUT.groundbait),
-      additive: getBestOwnedId('Additive', DEFAULT_LOADOUT.additive),
-      feederTip: getOwnedTip(),
-      castingDistance: DEFAULT_LOADOUT.castingDistance,
-      castingInterval: DEFAULT_LOADOUT.castingInterval,
-  }));
-
-  const handleLoadoutChange = <K extends keyof Loadout,>(field: K, value: Loadout[K]) => {
-    setLoadout(prev => ({ ...prev, [field]: value }));
-  };
-
-  /**
-   * Generates dropdown options from inventory, ensuring no duplicates.
-   * Uses a Map to track IDs and only keep the first occurrence of an item.
-   */
-  const getInventoryOptions = (type: GameItem['type'], defaultId: string) => {
-      const optionsMap = new Map<string, { label: string, value: string }>();
+  const [loadout, setLoadout] = useState<Loadout>(() => {
+      const saved = loadActiveLoadout() || JSON.parse(localStorage.getItem('lastLoadout') || 'null');
       
-      user.inventory
-        .filter(i => i.type === type)
-        .forEach(i => {
-          if (!optionsMap.has(i.id)) {
-            optionsMap.set(i.id, { label: t(`item.name.${i.id}`), value: i.id });
+      if (saved) {
+          try {
+              const validateItem = (type: GameItem['type'], id: string) => 
+                  user.inventory.some(i => i.type === type && i.id === id) ? id : getBestOwnedId(type, id);
+              
+              return {
+                  ...saved,
+                  rod: validateItem('Rod', saved.rod),
+                  reel: validateItem('Reel', saved.reel),
+                  line: validateItem('Line', saved.line),
+                  hook: validateItem('Hook', saved.hook),
+                  feeder: validateItem('Feeder', saved.feeder),
+                  bait: validateItem('Bait', saved.bait),
+                  groundbait: validateItem('Groundbait', saved.groundbait),
+                  additive: validateItem('Additive', saved.additive),
+                  feederTip: MOCK_FEEDER_TIPS.includes(saved.feederTip) ? saved.feederTip : getOwnedTip(),
+              };
+          } catch (e) {
+              console.warn("Failed to parse saved loadout:", e);
           }
-        });
-      
-      // If the inventory is missing items of this type, add the default as a fallback
-      if (optionsMap.size === 0) {
-          optionsMap.set(defaultId, { label: t(`item.name.${defaultId}`), value: defaultId });
       }
-      
-      return Array.from(optionsMap.values());
-  };
 
-  /**
-   * Generates quivertip options, ensuring they are unique.
-   */
-  const getTipOptions = () => {
-      const optionsMap = new Map<string, { label: string, value: string }>();
-      
-      MOCK_FEEDER_TIPS.forEach(tip => {
-          const id = `acc_qt${tip.replace('.', '').replace('oz', '')}`;
-          const isOwned = user.inventory.some(i => i.id === id);
-          if (isOwned && !optionsMap.has(tip)) {
-            optionsMap.set(tip, { label: t(`opt.tip.${tip}`), value: tip });
-          }
-      });
-
-      // Ensure we have at least one tip (the default)
-      if (optionsMap.size === 0) {
-          optionsMap.set(DEFAULT_LOADOUT.feederTip, { 
-              label: t(`opt.tip.${DEFAULT_LOADOUT.feederTip}`), 
-              value: DEFAULT_LOADOUT.feederTip 
-          });
-      }
-      return Array.from(optionsMap.values());
-  };
-
-  const getDistanceOptions = () => MOCK_CASTING_DISTANCES.map(opt => {
-      let key = 'medium';
-      if (opt.includes('20m')) key = 'short';
-      if (opt.includes('60m')) key = 'long';
-      if (opt.includes('80m')) key = 'extreme';
-      return { label: t(`opt.dist.${key}`), value: opt };
+      return {
+          ...DEFAULT_LOADOUT,
+          rod: getBestOwnedId('Rod', DEFAULT_LOADOUT.rod),
+          reel: getBestOwnedId('Reel', DEFAULT_LOADOUT.reel),
+          line: getBestOwnedId('Line', DEFAULT_LOADOUT.line),
+          hook: getBestOwnedId('Hook', DEFAULT_LOADOUT.hook),
+          feeder: getBestOwnedId('Feeder', DEFAULT_LOADOUT.feeder),
+          bait: getBestOwnedId('Bait', DEFAULT_LOADOUT.bait),
+          groundbait: getBestOwnedId('Groundbait', DEFAULT_LOADOUT.groundbait),
+          additive: getBestOwnedId('Additive', DEFAULT_LOADOUT.additive),
+          feederTip: getOwnedTip(),
+      };
   });
 
-  const getIntervalOptions = () => MOCK_CASTING_INTERVALS.map(opt => {
-      let key = 'regular';
-      if (opt.includes('2 mins')) key = 'frequent';
-      if (opt.includes('10 mins')) key = 'patient';
-      return { label: t(`opt.int.${key}`), value: opt };
-  });
-
-  const handleStartMatchInternal = () => {
-    onStartMatch({
+  useEffect(() => {
+    const finalLoadout = {
       ...loadout,
       venueFish: {
         dominant: venueFish.dominant.fullName,
         secondary: venueFish.secondary.fullName
       }
-    });
+    };
+    saveActiveLoadout(finalLoadout);
+    localStorage.setItem('lastLoadout', JSON.stringify(loadout));
+  }, [loadout, venueFish]);
+
+  const handleLoadoutChange = <K extends keyof Loadout,>(field: K, value: Loadout[K]) => {
+    setLoadout(prev => ({ ...prev, [field]: value }));
+  };
+
+  const getInventoryOptions = (type: GameItem['type'], defaultId: string) => {
+      const owned = user.inventory.filter(i => i.type === type);
+      if (owned.length === 0) return [{ label: t(`item.name.${defaultId}`), value: defaultId }];
+      return owned.map(i => ({ label: t(`item.name.${i.id}`), value: i.id }));
+  };
+
+  const getTipOptions = () => {
+      const ownedTips = user.inventory.filter(i => i.id.startsWith('acc_qt'));
+      return ownedTips.map(i => {
+          const numeric = i.id.replace('acc_qt', '');
+          const tipVal = `${numeric.slice(0, 1)}.${numeric.slice(1)}oz`;
+          return { label: t(`opt.tip.${tipVal}`), value: tipVal };
+      });
+  };
+
+  const getDistanceOptions = () => {
+    const keys: Record<string, string> = {
+      'Short (20m)': 'opt.dist.short',
+      'Medium (40m)': 'opt.dist.medium',
+      'Long (60m)': 'opt.dist.long',
+      'Extreme (80m)': 'opt.dist.extreme' // added missing key
+    };
+    return MOCK_CASTING_DISTANCES.map(d => ({ label: t(keys[d] || d), value: d }));
+  };
+
+  const getIntervalOptions = () => {
+    const keys: Record<string, string> = {
+      'Frequent (2 mins)': 'opt.int.frequent',
+      'Regular (5 mins)': 'opt.int.regular',
+      'Patient (10 mins)': 'opt.int.patient'
+    };
+    return MOCK_CASTING_INTERVALS.map(i => ({ label: t(keys[i] || i), value: i }));
   };
 
   return (
@@ -219,12 +211,24 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
           </div>
         </div>
         
-        <div className="flex-shrink-0 flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Button onClick={() => onNavigate(Screen.Inventory)} variant="secondary" className="h-12 border-primary text-primary">{t('main.inventory')}</Button>
-            <Button onClick={() => onNavigate(Screen.Shop)} variant="secondary" className="h-12 border-primary text-primary">{t('main.shop')}</Button>
+        <div className="flex-shrink-0 flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+                variant="secondary" 
+                onClick={() => onNavigate(Screen.Inventory)}
+                className="h-10 text-[10px]"
+            >
+                {t('main.inventory')}
+            </Button>
+            <Button 
+                variant="secondary" 
+                onClick={() => onNavigate(Screen.Shop)}
+                className="h-10 text-[10px]"
+            >
+                {t('main.shop')}
+            </Button>
           </div>
-          <Button onClick={handleStartMatchInternal} className="h-14">{t('match.start')}</Button>
+          <Button onClick={() => onStartMatch(loadout)} className="h-14">{t('match.start')}</Button>
         </div>
       </div>
     </div>

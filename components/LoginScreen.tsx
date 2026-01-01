@@ -56,7 +56,6 @@ export const LoginScreen: React.FC = () => {
         const code = err.code || "";
         const message = err.message || "";
         
-        // Handle variations of invalid credential errors including the newer generic ones
         const isCredentialError = 
           code === 'auth/user-not-found' || 
           code === 'auth/wrong-password' || 
@@ -80,7 +79,8 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <Header title={t('login.title')} />
+      {/* Restored the branded app title to the header */}
+      <Header title={t('app.title')} />
       
       <div className="px-6 flex flex-col flex-grow justify-center pb-12">
         <div className="absolute top-4 right-4 z-10">
@@ -96,6 +96,9 @@ export const LoginScreen: React.FC = () => {
         </div>
 
         <div className="text-center mb-8">
+          <h2 className="text-2xl font-black text-primary mb-1">
+            {isRegistering ? t('login.btn.register') : t('login.title')}
+          </h2>
           <p className="text-sm font-semibold text-onSurfaceVariant">
             {t('login.subtitle')}
           </p>

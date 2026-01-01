@@ -37,13 +37,15 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const formatCurrency = (amount: number): string => {
       const symbol = '€';
-      // Format with a non-breaking space as thousands separator instead of comma
       const formattedAmount = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
       
-      if (locale === 'en') {
-        return `${symbol}${formattedAmount}`;
+      // Handle symbol placement based on common European/English standards
+      const trailingSymbolLocales = ['de', 'fr', 'es', 'pt', 'ro', 'it', 'bg', 'pl', 'cz', 'hu'];
+      
+      if (trailingSymbolLocales.includes(locale)) {
+        return `${formattedAmount}\u00A0${symbol}`;
       }
-      return `${formattedAmount}${symbol}`;
+      return `${symbol}${formattedAmount}`;
     };
 
     return { locale, setLocale, t, formatCurrency };

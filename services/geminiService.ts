@@ -1,12 +1,10 @@
+
 import { GoogleGenAI } from "@google/genai";
 import type { Loadout, VenueCondition } from "../types";
 
 export async function getMatchHint(playerLoadout: Loadout, condition: VenueCondition, locale: string = 'en'): Promise<string> {
     try {
-        if (!process.env.API_KEY) {
-            throw new Error("API_KEY not set.");
-        }
-
+        // ALWAYS initialize GoogleGenAI inside the function call to use the most recent process.env.API_KEY.
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
         const prompt = `You are an expert fishing coach. A player is struggling in a competitive fishing match.
@@ -32,10 +30,11 @@ export async function getMatchHint(playerLoadout: Loadout, condition: VenueCondi
         
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: prompt,
+            contents: { parts: [{ text: prompt }] },
         });
 
-        return response.text.trim();
+        // The .text property directly returns the string output.
+        return response.text?.trim() || "Pay attention to the conditions and try changing your bait.";
 
     } catch (error) {
         console.error("Error fetching match hint from Gemini:", error);

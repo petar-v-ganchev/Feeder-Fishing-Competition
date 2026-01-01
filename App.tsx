@@ -89,14 +89,11 @@ const AppContent: React.FC = () => {
       if (firebaseUser) {
         const userProfile = await getUserProfile(firebaseUser.uid);
         if (userProfile) {
-          // Sync language: prioritize local manual selection during login process
           if (userProfile.language) {
              if (userProfile.language !== locale) {
-                // Update profile to match current local choice if different
                 await updateUserProfile(firebaseUser.uid, { language: locale });
              }
           } else {
-             // Initialize profile language
              await updateUserProfile(firebaseUser.uid, { language: locale });
           }
 
@@ -194,8 +191,17 @@ const AppContent: React.FC = () => {
     return { emailChanged: false };
   };
 
+  const handleLiveMatchFound = (participants: LiveParticipant[]) => {
+      setLiveParticipants(participants);
+      handleNavigate(Screen.Loadout);
+  };
+
   const renderScreen = () => {
-    if (isAuthLoading) return <div className="h-screen flex items-center justify-center"><p className="text-xl font-bold animate-pulse text-primary">Loading game...</p></div>;
+    if (isAuthLoading) return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-xl font-bold animate-pulse text-primary">{t('app.loading')}</p>
+      </div>
+    );
     if (currentScreen === Screen.Login) return <LoginScreen />;
     if (currentScreen === Screen.CreateProfile && pendingFirebaseUser) return <CreateProfileScreen firebaseUser={pendingFirebaseUser} onProfileCreated={(nu) => { setUser(nu); setPendingFirebaseUser(null); handleResetStack(Screen.MainMenu); }} />;
     if (!user) return <LoginScreen />;
@@ -203,9 +209,17 @@ const AppContent: React.FC = () => {
     switch (currentScreen) {
       case Screen.MainMenu: return <MainMenuScreen user={user} onNavigate={handleNavigate} dailyChallenge={dailyChallenge} onClaimReward={handleClaimChallengeReward} isChallengeLoading={isChallengeLoading} />;
       case Screen.Matchmaking: return <MatchmakingScreen onMatchFound={() => handleNavigate(Screen.Loadout)} />;
-      case Screen.LiveMatchmaking: return <LiveMatchmakingScreen user={user} onBack={handleBack} onMatchFound={setLiveParticipants} />;
-      case Screen.Loadout: return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => handleResetStack(Screen.MainMenu)} onNavigate={handleNavigate} />;
-      case Screen.MatchUI: return matchLoadout && <MatchUIScreen user={user} playerLoadout={matchLoadout} onMatchEnd={handleMatchEnd} participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} />;
+      case Screen.LiveMatchmaking: return <LiveMatchmakingScreen user={user} onBack={handleBack} onMatchFound={handleLiveMatchFound} />;
+      case Screen.Loadout: return <LoadoutScreen user={user} onStartMatch={handleStartMatch} onBack={() => { setLiveParticipants([]); handleResetStack(Screen.MainMenu); }} onNavigate={handleNavigate} />;
+      case Screen.MatchUI: return matchLoadout && (
+        <MatchUIScreen 
+          key={`match-${JSON.stringify(matchLoadout)}`} 
+          user={user} 
+          playerLoadout={matchLoadout} 
+          onMatchEnd={handleMatchEnd} 
+          participantsOverride={liveParticipants.length > 0 ? liveParticipants : undefined} 
+        />
+      );
       case Screen.Results: return matchResult && <ResultsScreen result={matchResult} onContinue={handleResultsContinue} />;
       case Screen.Profile: return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} onBack={handleBack} />;
       case Screen.EditProfile: return <EditProfileScreen user={user} onBack={handleBack} onSave={handleUpdateProfile} onDeleteAccount={deleteUserAccount} />;

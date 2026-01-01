@@ -33,6 +33,11 @@ export async function getDailyChallenge(locale: string = 'en'): Promise<DailyCha
     
     let description = langDict[descKey] || translations['en'][descKey] || langDict[fallbackKey] || translations['en'][fallbackKey];
 
+    // Replace placeholders with actual values
+    if (description.includes('{target}')) {
+        description = description.replace('{target}', config.target.toString());
+    }
+
     return {
         challengeType: config.type,
         description: description,
