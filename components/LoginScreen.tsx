@@ -51,10 +51,17 @@ export const LoginScreen: React.FC = () => {
         localStorage.setItem('lastLoginEmail', email);
       }
     } catch (err: any) {
-        console.error(err);
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        console.error("Login/Register error:", err);
+        const code = err.code;
+        // Handle all variations of invalid credential errors including the newer generic ones
+        if (
+          code === 'auth/user-not-found' || 
+          code === 'auth/wrong-password' || 
+          code === 'auth/invalid-credential' || 
+          code === 'auth/invalid-login-credentials'
+        ) {
           setError(t('error.invalid_login'));
-        } else if (err.code === 'auth/email-already-in-use') {
+        } else if (code === 'auth/email-already-in-use') {
           setError(t('error.email_in_use'));
         } else {
           setError(t('error.generic'));
