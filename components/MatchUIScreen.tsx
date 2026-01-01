@@ -12,7 +12,8 @@ import {
     MOCK_HOOK_SIZES,
     MOCK_FEEDER_TYPES,
     MOCK_ADDITIVES,
-    MOCK_FISH_SPECIES
+    MOCK_FISH_SPECIES,
+    DEFAULT_LOADOUT
 } from '../constants';
 import { type LiveParticipant } from '../services/liveMatchService';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -91,6 +92,7 @@ const generateCompetitiveLoadout = (venueFish: Loadout['venueFish']): Loadout =>
     );
 
     if (!targetFish) return {
+        ...DEFAULT_LOADOUT,
         rod: getRandomElement(MOCK_RODS), reel: getRandomElement(MOCK_REELS),
         line: getRandomElement(MOCK_LINES), hook: getRandomElement(MOCK_HOOK_SIZES),
         feeder: getRandomElement(MOCK_FEEDER_TYPES), bait: getRandomElement(MOCK_BAITS),
@@ -132,7 +134,12 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     
     const [participants, setParticipants] = useState<MatchParticipant[]>(() => {
         const sessionLoadout = loadActiveLoadout();
-        const initialLoadout = sessionLoadout || { ...playerLoadout };
+        // HYDRATION FIX: Merge prop loadout with defaults and session storage to ensure 100% field presence
+        const initialLoadout = { 
+            ...DEFAULT_LOADOUT, 
+            ...playerLoadout, 
+            ...(sessionLoadout || {}) 
+        };
 
         const mainPlayer: MatchParticipant = {
             id: user.id, 
@@ -163,9 +170,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 }));
             return [mainPlayer, ...otherHumans];
         } else {
+            // Updated Bot Names
             const PRACTICE_BOTS = [
-                "Sabo Benjamin", "Sekley George", "Georgio Andrew", "Espander Michael",
-                "Lufton Maxwell", "Hanley Paul", "Novak John", "Anson Raymond",
+                "Benjamin Sabo", "George Sekley", "Andrew Georgio", "Michael Espander",
+                "Maxwell Lufton", "Paul Hanley", "John Novak", "Anson Raymond",
                 "Felix Sherman", "James O’Harris", "Adam Eldridge", "Joseph Konrad",
                 "Steven Ringwood", "Matthew Sivens"
             ];
@@ -261,7 +269,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         if (opt.includes('_')) return t(`item.name.${opt}`);
         if (field === 'feederTip') return t(`opt.tip.${opt}`);
         
-        // Map parameter values to their translation keys
         const paramKeys: Record<string, string> = {
             'Short (20m)': 'opt.dist.short',
             'Medium (40m)': 'opt.dist.medium',
@@ -272,7 +279,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             'Patient (10 mins)': 'opt.int.patient'
         };
         
+        // Handle literal values or predefined keys
         if (paramKeys[opt]) return t(paramKeys[opt]);
+        if (opt.startsWith('opt.')) return t(opt);
+        
         return opt;
     };
 
