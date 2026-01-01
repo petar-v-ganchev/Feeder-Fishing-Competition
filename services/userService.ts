@@ -1,4 +1,3 @@
-
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -135,15 +134,21 @@ interface LoginUserParams {
     password?: string;
 }
 
-// Fix: Destructured params to correctly access email, password and rememberMe
 export async function loginUser(params: LoginUserParams & { rememberMe: boolean }) {
     const { email, password, rememberMe } = params;
+    
     if (!password) {
         throw new Error("Password is required to log in.");
     }
+
     const persistenceType = rememberMe ? browserLocalPersistence : browserSessionPersistence;
-    await setPersistence(auth, persistenceType);
-    await signInWithEmailAndPassword(auth, email, password);
+    
+    try {
+        await setPersistence(auth, persistenceType);
+        return await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        throw error;
+    }
 }
 
 export async function getUserProfile(uid: string): Promise<User | null> {

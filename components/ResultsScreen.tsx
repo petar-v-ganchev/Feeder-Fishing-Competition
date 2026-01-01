@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { MatchResult, MatchParticipant } from '../types';
 import { Button } from './common/Button';
@@ -10,6 +9,16 @@ interface ResultsScreenProps {
   result: MatchResult;
   onContinue: () => void;
 }
+
+/**
+ * Formats a string to Title Case (e.g., "Hello World").
+ */
+const toTitleCase = (str: string): string => {
+    if (!str) return '';
+    return str.toLowerCase().split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+};
 
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue }) => {
   const { t, formatCurrency } = useTranslation();
@@ -40,7 +49,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
                               {index + 1}
                             </span>
                             <span className={`truncate font-bold text-sm ${!p.isBot ? 'text-primary' : 'text-onSurface'}`}>
-                              {p.name}
+                              {toTitleCase(p.name)}
                             </span>
                         </div>
                         <span className={`font-black text-sm ${!p.isBot ? 'text-primary' : 'text-onSurfaceVariant'}`}>

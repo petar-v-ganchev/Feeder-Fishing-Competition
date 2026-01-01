@@ -43,26 +43,34 @@ export const LoginScreen: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      const cleanEmail = email.trim();
       if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
-        localStorage.setItem('lastLoginEmail', email);
+        await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        localStorage.setItem('lastLoginEmail', cleanEmail);
       } else {
-        await loginUser({ email, password, rememberMe });
-        localStorage.setItem('lastLoginEmail', email);
+        await loginUser({ email: cleanEmail, password, rememberMe });
+        localStorage.setItem('lastLoginEmail', cleanEmail);
       }
     } catch (err: any) {
-        console.error("Login/Register error:", err);
-        const code = err.code;
-        // Handle all variations of invalid credential errors including the newer generic ones
-        if (
+        console.warn("Auth attempt failed:", err.code || err.message);
+        const code = err.code || "";
+        const message = err.message || "";
+        
+        // Handle variations of invalid credential errors including the newer generic ones
+        const isCredentialError = 
           code === 'auth/user-not-found' || 
           code === 'auth/wrong-password' || 
           code === 'auth/invalid-credential' || 
-          code === 'auth/invalid-login-credentials'
-        ) {
+          code === 'auth/invalid-login-credentials' ||
+          message.includes('auth/invalid-login-credentials') ||
+          message.includes('invalid-credential');
+
+        if (isCredentialError) {
           setError(t('error.invalid_login'));
         } else if (code === 'auth/email-already-in-use') {
           setError(t('error.email_in_use'));
+        } else if (code === 'auth/invalid-email') {
+          setError(t('error.invalid_email'));
         } else {
           setError(t('error.generic'));
         }
@@ -103,6 +111,7 @@ export const LoginScreen: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className={`w-full bg-slate-50 border ${error && !email ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
                     placeholder={t('login.placeholder.email')}
+                    autoComplete="email"
                 />
             </div>
             <div className="space-y-1">
@@ -113,6 +122,7 @@ export const LoginScreen: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className={`w-full bg-slate-50 border ${error && !password ? 'border-red-500' : 'border-outline'} p-3 rounded-small text-sm outline-none focus:border-primary transition-all`}
                     placeholder={t('login.placeholder.password')}
+                    autoComplete={isRegistering ? "new-password" : "current-password"}
                 />
             </div>
           </div>

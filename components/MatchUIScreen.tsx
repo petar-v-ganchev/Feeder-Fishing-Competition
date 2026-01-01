@@ -27,7 +27,7 @@ interface MatchUIScreenProps {
 const MATCH_DURATION = 600; // 10 minutes in seconds
 
 const FIPSED_PRO_NAMES = [
-    "Stevie Ringler", "Lee Edvards", "Gabor Domer", "Jense Koschnic",
+    "Stevie Ringler", "Lee Korry", "Gabor Domer", "Jense Koschnic",
     "Micky Vialls", "Angel De Pascali", "Arjen Klopp", "Vadim Yakubow",
     "Matt Weigand", "Jan v. Shendel", "Tamas Waltermann", "Adame Wakeline",
     "Phil Ringler", "Franco Gianotty"
@@ -37,11 +37,22 @@ const COL_WIDTH = 130;
 const ROW_HEIGHT_CLASS = 'h-[52px]'; 
 
 /**
+ * Formats a string to Title Case (e.g., "Hello World").
+ */
+const toTitleCase = (str: string): string => {
+    if (!str) return '';
+    return str.toLowerCase().split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+};
+
+/**
  * Formats a string to Sentence case (e.g., "Hello world").
  */
 const toSentenceCase = (str: string): string => {
     if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    const s = str.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
 /**
@@ -104,6 +115,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
     const [lastCatchId, setLastCatchId] = useState<string | null>(null);
     const [playerCatchTimestamps, setPlayerCatchTimestamps] = useState<number[]>([]);
+    const tableContainerRef = useRef<HTMLDivElement>(null);
     
     const [participants, setParticipants] = useState<MatchParticipant[]>(() => {
         const p: MatchParticipant = {
@@ -191,6 +203,27 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return 'stable';
     }, [playerCatchTimestamps]);
 
+    // Score comparison logic for the diagram
+    const maxWeight = useMemo(() => {
+        const weights = participants.map(p => p.totalWeight);
+        return Math.max(...weights, 0.1); // Avoid division by zero
+    }, [participants]);
+
+    const scrollToParticipant = (participantId: string) => {
+        if (!tableContainerRef.current) return;
+        
+        if (participantId === user.id) {
+            tableContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+            const index = botParticipants.findIndex(b => b.id === participantId);
+            if (index !== -1) {
+                // Bots start after the player (index 0)
+                // Since scroll padding is COL_WIDTH, we scroll to index * COL_WIDTH
+                tableContainerRef.current.scrollTo({ left: (index + 1) * COL_WIDTH, behavior: 'smooth' });
+            }
+        }
+    };
+
     const updatePlayerTactic = (field: keyof Loadout, value: string) => {
         setParticipants(prev => prev.map(p => 
             p.id === user.id 
@@ -276,37 +309,93 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
     return (
         <div className="flex flex-col h-screen bg-white text-onSurface overflow-hidden select-none">
-            {/* Stats Header */}
-            <div className="mx-4 mt-4 mb-2 bg-slate-50 rounded-medium shadow-md border border-outline flex-shrink-0">
-                <div className="grid grid-cols-3 gap-px bg-outline/20 overflow-hidden rounded-medium">
-                    <div className="bg-slate-50 text-center py-2 border-r border-outline/20">
-                        <p className="text-[8px] font-bold text-onSurfaceVariant mb-0.5">{t('match.ui.position')}</p>
-                        <p className="text-xl font-black text-primary">#{rank}</p>
+            {/* Unified Stats Header - Styled like the standings widget */}
+            <div className="bg-slate-50 border-b border-outline px-4 py-3 flex flex-col gap-2 flex-shrink-0">
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-black text-onSurfaceVariant tracking-wider">
+                        {toSentenceCase(t('match.session'))}
+                    </span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="flex flex-col items-center">
+                        <p className="text-[7px] font-bold text-onSurfaceVariant mb-0.5">{toSentenceCase(t('match.ui.position'))}</p>
+                        <p className="text-xl font-black text-primary leading-none">#{rank}</p>
                     </div>
-                    {/* Replaced Tactical Efficiency with Catch Trend */}
-                    <div className="bg-slate-50 text-center py-2 flex flex-col items-center px-2">
-                        <p className="text-[7px] font-bold text-onSurfaceVariant mb-1">{toSentenceCase(t('match.ui.trend'))}</p>
-                        <div className="flex items-center gap-1.5 mb-1 bg-white px-2 py-0.5 rounded-full border border-outline shadow-sm">
+                    <div className="flex flex-col items-center">
+                        <p className="text-[7px] font-bold text-onSurfaceVariant mb-0.5">{toSentenceCase(t('match.ui.trend'))}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
                             <TrendIcon />
-                            <span className={`text-[9px] font-black uppercase tracking-tight ${
+                            <span className={`text-[9px] font-black tracking-tight ${
                                 catchTrend === 'rising' ? 'text-green-700' : 
                                 catchTrend === 'falling' ? 'text-red-700' : 
                                 'text-yellow-700'
                             }`}>
-                                {getTrendLabel()}
+                                {toSentenceCase(getTrendLabel())}
                             </span>
                         </div>
                     </div>
-                    <div className="bg-slate-50 text-center py-2 border-l border-outline/20">
-                        <p className="text-[8px] font-bold text-onSurfaceVariant mb-0.5">{toSentenceCase(t('match.ui.time'))}</p>
-                        <p className="text-xl font-black text-primary font-mono">{formatTime(timeLeft)}</p>
+                    <div className="flex flex-col items-center">
+                        <p className="text-[7px] font-bold text-onSurfaceVariant mb-0.5">{toSentenceCase(t('match.ui.time'))}</p>
+                        <p className="text-xl font-black text-primary font-mono leading-none">{formatTime(timeLeft)}</p>
                     </div>
                 </div>
             </div>
 
+            {/* Interactive Performance Standings - Positioned above the table */}
+            <div className="bg-slate-50 border-y border-outline px-4 py-3 mb-2 flex flex-col gap-2 flex-shrink-0">
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-black text-onSurfaceVariant tracking-wider">
+                        {toSentenceCase(t('match.ui.live_standings'))}
+                    </span>
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-primary shadow-sm"></div>
+                            <span className="text-[8px] font-black text-primary">{toTitleCase(user.displayName)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                            <span className="text-[8px] font-black text-onSurfaceVariant">{t('match.ui.bots')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Relative Weight Bar Chart - Container with padding-top for tooltips */}
+                <div className="relative">
+                    <div className="flex items-end gap-1.5 h-24 overflow-x-auto overflow-y-hidden custom-scrollbar pb-1 px-1 pt-8">
+                        {participants.map((p, idx) => {
+                            const relativeHeight = (p.totalWeight / maxWeight) * 100;
+                            const isPlayer = p.id === user.id;
+                            const isCatching = lastCatchId === p.id;
+                            
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => scrollToParticipant(p.id)}
+                                    className={`group relative flex-shrink-0 w-5 transition-all duration-300 rounded-t-sm outline-none ${
+                                        isPlayer ? 'bg-primary' : 'bg-slate-300 hover:bg-slate-400'
+                                    } ${isCatching ? 'animate-pulse scale-110 brightness-110' : ''}`}
+                                    style={{ height: `${Math.max(relativeHeight, 10)}%`, maxHeight: '64px' }}
+                                >
+                                    {/* Small indicator for player */}
+                                    {isPlayer && (
+                                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+                
+                {/* Instruction text */}
+                <p className="text-[7px] text-onSurfaceVariant font-bold italic opacity-70 text-center mt-1">
+                    {t('match.ui.scroll_hint')}
+                </p>
+            </div>
+
             {/* Compact Dashboard Grid */}
-            <div className="flex-grow flex flex-col overflow-hidden relative border-t border-outline">
+            <div className="flex-grow flex flex-col overflow-hidden relative">
                 <div 
+                  ref={tableContainerRef}
                   className="flex-grow overflow-auto custom-scrollbar snap-x snap-mandatory"
                   style={{ scrollPaddingLeft: `${COL_WIDTH}px` }}
                 >
@@ -318,7 +407,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                   className={`sticky left-0 z-50 border-b-2 border-primary/20 border-r border-outline px-2 text-center transition-colors duration-500 shadow-[4px_0_10px_rgba(0,0,0,0.1)] ${lastCatchId === user.id ? 'bg-green-100' : 'bg-blue-50'}`} 
                                   style={{ width: COL_WIDTH }}
                                 >
-                                    <p className="text-[10px] font-black truncate text-primary leading-tight tracking-tight">{toSentenceCase(user.displayName)}</p>
+                                    <p className="text-[10px] font-black truncate text-primary leading-tight tracking-tight">{toTitleCase(user.displayName)}</p>
                                     <p className={`text-sm font-black mt-0.5 ${lastCatchId === user.id ? 'text-green-700 scale-105' : 'text-secondary'} transition-all`}>
                                         {currentPlayer?.totalWeight.toFixed(2)} kg
                                     </p>
@@ -326,7 +415,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                 {/* Scrollable Opponent Headers */}
                                 {botParticipants.map(bot => (
                                     <th key={bot.id} className={`bg-slate-100 border-b-2 border-primary/20 border-r border-outline px-2 text-center transition-colors duration-500 snap-start ${lastCatchId === bot.id ? 'bg-green-50' : ''}`} style={{ width: COL_WIDTH }}>
-                                        <p className="text-[9px] font-bold truncate text-onSurface leading-tight tracking-tight opacity-70">{toSentenceCase(bot.name)}</p>
+                                        <p className="text-[9px] font-bold truncate text-onSurface leading-tight tracking-tight opacity-70">{toTitleCase(bot.name)}</p>
                                         <p className={`text-xs font-black mt-0.5 ${lastCatchId === bot.id ? 'text-green-600 scale-105' : 'text-onSurfaceVariant'} transition-all`}>
                                             {bot.totalWeight.toFixed(2)} kg
                                         </p>
@@ -339,13 +428,13 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                 <tr key={f.field} className={ROW_HEIGHT_CLASS}>
                                     {/* Player Sticky Cells - Non-bold content */}
                                     <td 
-                                      className="sticky left-0 z-30 bg-blue-50 border-b border-r border-outline px-2 shadow-[4px_0_10px_rgba(0,0,0,0.05)]" 
+                                      className="sticky left-0 z-30 bg-blue-50 border-b border-r border-outline px-2 shadow-[4px_0_10_rgba(0,0,0,0.05)]" 
                                       style={{ width: COL_WIDTH }}
                                     >
                                         <div className="relative h-full flex items-center">
                                             <div className="relative w-full">
-                                                <label className="absolute -top-1.5 left-1 px-1 bg-blue-50 text-[6px] font-black text-primary uppercase tracking-tight z-10 leading-none">
-                                                    {f.label}
+                                                <label className="absolute -top-1.5 left-1 px-1 bg-blue-50 text-[6px] font-black text-primary z-10 leading-none">
+                                                    {toSentenceCase(f.label)}
                                                 </label>
                                                 <select 
                                                     value={currentPlayer?.loadout[f.field] as string}
@@ -366,8 +455,8 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                                         <td key={bot.id} className="bg-white border-b border-r border-outline px-2 text-center snap-start" style={{ width: COL_WIDTH }}>
                                             <div className="relative h-full flex items-center">
                                                 <div className="relative w-full border border-slate-100 rounded-small bg-slate-50/30 px-1 pt-1 pb-0">
-                                                    <span className="absolute -top-1.5 left-1 px-1 bg-white text-[6px] font-bold text-onSurfaceVariant uppercase tracking-tight z-10 leading-none">
-                                                        {f.label}
+                                                    <span className="absolute -top-1.5 left-1 px-1 bg-white text-[6px] font-bold text-onSurfaceVariant z-10 leading-none">
+                                                        {toSentenceCase(f.label)}
                                                     </span>
                                                     <span className="text-[9px] text-onSurface/50 truncate block text-center py-1">
                                                         {getOptionLabel(f.field, bot.loadout[f.field] as string)}
@@ -380,23 +469,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                             ))}
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            {/* Compact Footer */}
-            <div className="bg-slate-100 border-t border-outline px-4 py-2 flex justify-between items-center flex-shrink-0">
-                <span className="text-[9px] font-bold text-onSurfaceVariant animate-pulse">
-                    Live feed
-                </span>
-                <div className="flex gap-3">
-                    <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                        <span className="text-[8px] font-black text-primary uppercase">{user.displayName}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-secondary"></div>
-                        <span className="text-[8px] font-black text-secondary uppercase">Weight</span>
-                    </div>
                 </div>
             </div>
         </div>
