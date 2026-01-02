@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Screen, type Loadout, type User, type GameItem } from '../types';
 import { Button } from './common/Button';
 import { Header } from './common/Header';
@@ -43,6 +44,7 @@ const SelectInput: React.FC<{label: string, value: string, onChange: (e: React.C
 export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBack, user, onNavigate }) => {
   const { t } = useTranslation();
   
+  // Venue randomization is memoized so it doesn't shift while the player is on this screen
   const venueFish = useMemo(() => {
     const shuffled = [...MOCK_FISH_SPECIES].sort(() => 0.5 - Math.random());
     const dominant = shuffled[0];
@@ -117,20 +119,26 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
       };
   });
 
-  useEffect(() => {
-    const finalLoadout = {
+  const handleLoadoutChange = <K extends keyof Loadout,>(field: K, value: Loadout[K]) => {
+    const updated = { ...loadout, [field]: value };
+    setLoadout(updated);
+    localStorage.setItem('lastLoadout', JSON.stringify(updated));
+  };
+
+  const handleStartMatchClick = () => {
+    const finalLoadout: Loadout = {
       ...loadout,
       venueFish: {
         dominant: venueFish.dominant.fullName,
         secondary: venueFish.secondary.fullName
       }
     };
+    
+    // Explicitly persist the session loadout
     saveActiveLoadout(finalLoadout);
-    localStorage.setItem('lastLoadout', JSON.stringify(loadout));
-  }, [loadout, venueFish]);
-
-  const handleLoadoutChange = <K extends keyof Loadout,>(field: K, value: Loadout[K]) => {
-    setLoadout(prev => ({ ...prev, [field]: value }));
+    
+    // Pass loadout to App.tsx which handles navigation to MatchUI
+    onStartMatch(finalLoadout);
   };
 
   const getInventoryOptions = (type: GameItem['type'], defaultId: string) => {
@@ -153,7 +161,7 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
       'Short (20m)': 'opt.dist.short',
       'Medium (40m)': 'opt.dist.medium',
       'Long (60m)': 'opt.dist.long',
-      'Extreme (80m)': 'opt.dist.extreme' // added missing key
+      'Extreme (80m)': 'opt.dist.extreme'
     };
     return MOCK_CASTING_DISTANCES.map(d => ({ label: t(keys[d] || d), value: d }));
   };
@@ -228,7 +236,7 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
                 {t('main.shop')}
             </Button>
           </div>
-          <Button onClick={() => onStartMatch(loadout)} className="h-14">{t('match.start')}</Button>
+          <Button onClick={handleStartMatchClick} className="h-14">{t('match.start')}</Button>
         </div>
       </div>
     </div>

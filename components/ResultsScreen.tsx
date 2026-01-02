@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { MatchResult, MatchParticipant } from '../types';
 import { Button } from './common/Button';
@@ -10,10 +11,6 @@ interface ResultsScreenProps {
   onContinue: () => void;
 }
 
-/**
- * Formats a string to Title Case (e.g., "Hello World").
- * Used for Player Names.
- */
 const toTitleCase = (str: string): string => {
     if (!str) return '';
     return str.toLowerCase().split(' ').map(word => 
@@ -21,9 +18,6 @@ const toTitleCase = (str: string): string => {
     ).join(' ');
 };
 
-/**
- * Formats a string to Sentence case (e.g., "Hello world").
- */
 const toSentenceCase = (str: string): string => {
     if (!str) return '';
     const s = str.trim();
@@ -42,10 +36,9 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
-      <Header title={t('results.title')} />
+      <Header title={toSentenceCase(t('results.title'))} />
       
       <div className="px-6 flex flex-col flex-grow pb-6 overflow-hidden">
-        {/* Ranking table */}
         <Card className="flex-grow flex flex-col min-h-0 bg-white shadow-sm border-outline overflow-hidden mb-4 p-0">
             <ul className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-1">
                 {result.standings.map((p, index) => {
@@ -76,13 +69,11 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
             </ul>
         </Card>
         
-        {/* Bottom section - stays fixed in view */}
         <div className="flex flex-col gap-3 flex-shrink-0">
-            {/* Rewards Tile */}
             <div className="bg-slate-50 border border-outline p-4 rounded-medium flex justify-between items-center relative overflow-hidden">
               {isPodium && (
-                <div className="absolute top-0 right-0 bg-primary text-white text-[7px] font-black px-2 py-0.5 rounded-bl-sm uppercase tracking-tighter shadow-sm z-10">
-                   {t('results.podium_bonus')}
+                <div className="absolute top-0 right-0 bg-primary text-white text-[7px] font-black px-2 py-0.5 rounded-bl-sm tracking-tighter shadow-sm z-10">
+                   {toSentenceCase(t('results.podium_bonus'))}
                 </div>
               )}
               <div>
@@ -100,7 +91,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onContinue
               </div>
             </div>
 
-            <Button onClick={onContinue} className="h-12">{t('results.back')}</Button>
+            <Button onClick={onContinue} className="h-12">{toSentenceCase(t('results.back'))}</Button>
         </div>
       </div>
     </div>

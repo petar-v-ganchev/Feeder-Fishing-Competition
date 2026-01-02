@@ -17,7 +17,7 @@ import {
 } from '../constants';
 import { type LiveParticipant } from '../services/liveMatchService';
 import { useTranslation } from '../i18n/LanguageContext';
-import { saveActiveLoadout, loadActiveLoadout } from '../services/tacticService';
+import { saveActiveLoadout } from '../services/tacticService';
 
 interface MatchUIScreenProps {
   user: User;
@@ -41,7 +41,7 @@ const toTitleCase = (str: string): string => {
 const toSentenceCase = (str: string): string => {
     if (!str) return '';
     const s = str.trim();
-    return s.charAt(0).toUpperCase() + s.slice(1);
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 };
 
 const calculateEfficiency = (loadout: Loadout): number => {
@@ -133,19 +133,16 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
     const isLiveMode = !!(participantsOverride && participantsOverride.length > 0);
     
     const [participants, setParticipants] = useState<MatchParticipant[]>(() => {
-        const sessionLoadout = loadActiveLoadout();
-        // HYDRATION FIX: Merge prop loadout with defaults and session storage to ensure 100% field presence
-        const initialLoadout = { 
+        const activePlayerLoadout = { 
             ...DEFAULT_LOADOUT, 
-            ...playerLoadout, 
-            ...(sessionLoadout || {}) 
+            ...playerLoadout 
         };
 
         const mainPlayer: MatchParticipant = {
             id: user.id, 
             name: user.displayName, 
             isBot: false, 
-            loadout: initialLoadout, 
+            loadout: activePlayerLoadout, 
             totalWeight: 0, 
             catchStreak: 0, 
             lastCatchTime: Date.now(),
@@ -161,7 +158,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     id: lp.id,
                     name: lp.displayName,
                     isBot: false, 
-                    loadout: generateCompetitiveLoadout(initialLoadout.venueFish), 
+                    loadout: generateCompetitiveLoadout(activePlayerLoadout.venueFish), 
                     totalWeight: 0,
                     catchStreak: 0,
                     lastCatchTime: Date.now(),
@@ -170,7 +167,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 }));
             return [mainPlayer, ...otherHumans];
         } else {
-            // Updated Bot Names
             const PRACTICE_BOTS = [
                 "Benjamin Sabo", "George Sekley", "Andrew Georgio", "Michael Espander",
                 "Maxwell Lufton", "Paul Hanley", "John Novak", "Anson Raymond",
@@ -181,7 +177,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 id: `bot_${i}`, 
                 name: name, 
                 isBot: true, 
-                loadout: generateCompetitiveLoadout(initialLoadout.venueFish), 
+                loadout: generateCompetitiveLoadout(activePlayerLoadout.venueFish), 
                 totalWeight: 0, 
                 catchStreak: 0, 
                 lastCatchTime: Date.now()
@@ -214,20 +210,23 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
 
     useEffect(() => {
         const sim = setInterval(() => {
-            setParticipants(prev => prev.map(p => {
-                const eff = calculateEfficiency(p.loadout);
-                const catchChance = p.isBot ? (0.03 + (eff * 0.10)) : (0.04 + (eff * 0.12));
-                
-                if (Math.random() < catchChance) {
-                    const weight = parseFloat((Math.random() * 1.5 + 0.1).toFixed(2));
-                    setLastCatchId(p.id);
-                    if (p.id === user.id) setPlayerCatchTimestamps(prev => [...prev, Date.now()]);
-                    setTimeout(() => setLastCatchId(null), 2500);
-                    return { ...p, totalWeight: p.totalWeight + weight, lastCatchTime: Date.now() };
-                }
-                return p;
-            }));
-        }, 3000);
+            setParticipants(prev => {
+                return prev.map(p => {
+                    const eff = calculateEfficiency(p.loadout);
+                    // Increased catch rates to make real-time bar updates more visible
+                    const catchChance = p.isBot ? (0.08 + (eff * 0.18)) : (0.10 + (eff * 0.22));
+                    
+                    if (Math.random() < catchChance) {
+                        const weight = parseFloat((Math.random() * 2.5 + 0.1).toFixed(2));
+                        setLastCatchId(p.id);
+                        if (p.id === user.id) setPlayerCatchTimestamps(ts => [...ts, Date.now()]);
+                        setTimeout(() => setLastCatchId(null), 800);
+                        return { ...p, totalWeight: p.totalWeight + weight, lastCatchTime: Date.now() };
+                    }
+                    return p;
+                });
+            });
+        }, 1200); 
         return () => clearInterval(sim);
     }, [user.id]);
 
@@ -239,7 +238,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         return recent > previous ? 'rising' : recent < previous ? 'falling' : 'stable';
     }, [playerCatchTimestamps]);
 
-    const maxWeight = useMemo(() => Math.max(...participants.map(p => p.totalWeight), 0.1), [participants]);
+    const maxWeight = useMemo(() => {
+        const m = Math.max(...participants.map(p => p.totalWeight));
+        return m > 0 ? m : 1.0;
+    }, [participants]);
 
     const scrollToParticipant = (participantId: string) => {
         if (!tableContainerRef.current) return;
@@ -259,7 +261,10 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
         { label: t('match.tackle.bait'), field: 'bait', options: user.inventory.filter(i => i.type === 'Bait').map(i => i.id) },
         { label: t('match.tackle.groundbait'), field: 'groundbait', options: user.inventory.filter(i => i.type === 'Groundbait').map(i => i.id) },
         { label: t('match.tackle.additive'), field: 'additive', options: user.inventory.filter(i => i.type === 'Additive').map(i => i.id) },
-        { label: t('match.tackle.feedertip'), field: 'feederTip', options: MOCK_FEEDER_TIPS },
+        { label: t('match.tackle.feedertip'), field: 'feederTip', options: user.inventory.filter(i => i.id.startsWith('acc_qt')).map(i => {
+            const numeric = i.id.replace('acc_qt', '');
+            return `${numeric.slice(0, 1)}.${numeric.slice(1)}oz`;
+        }) },
         { label: t('match.tackle.distance'), field: 'castingDistance', options: MOCK_CASTING_DISTANCES },
         { label: t('match.tackle.interval'), field: 'castingInterval', options: MOCK_CASTING_INTERVALS },
     ];
@@ -279,7 +284,6 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
             'Patient (10 mins)': 'opt.int.patient'
         };
         
-        // Handle literal values or predefined keys
         if (paramKeys[opt]) return t(paramKeys[opt]);
         if (opt.startsWith('opt.')) return t(opt);
         
@@ -313,7 +317,7 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                     <div className="flex flex-col items-center">
                         <p className="text-[7px] font-bold text-onSurfaceVariant mb-0.5">{toSentenceCase(t('match.ui.trend'))}</p>
                         <span className={`text-[9px] font-black tracking-tight ${catchTrend === 'rising' ? 'text-green-700' : catchTrend === 'falling' ? 'text-red-700' : 'text-yellow-700'}`}>
-                            {toSentenceCase(t(`match.ui.trend_${catchTrend}`))}
+                            {t(`match.ui.trend_${catchTrend}`)}
                         </span>
                     </div>
                     <div className="flex flex-col items-center">
@@ -323,32 +327,50 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                 </div>
             </div>
 
-            <div className="bg-slate-50 border-y border-outline flex flex-col flex-shrink-0 mb-4">
+            <div className="bg-slate-50 border-y border-outline flex flex-col flex-shrink-0">
                 <div className="px-4 pt-3 flex flex-col gap-1.5">
                     <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-onSurfaceVariant tracking-tight">{toSentenceCase(t('match.ui.live_standings'))}</span>
                     </div>
                 </div>
                 
-                <div className="flex flex-col items-center pb-4">
-                    <div className="flex items-end justify-center gap-1.5 h-16 overflow-hidden pb-1 pt-4 px-1">
+                <div className="flex flex-col items-center pb-3">
+                    <div className="flex items-end justify-between gap-px h-16 w-full overflow-hidden pb-1 pt-4">
                         {participants.map((p) => {
                             const h = (p.totalWeight / maxWeight) * 100;
                             const isPlayer = p.id === user.id;
                             return (
-                                <button 
-                                    key={p.id} 
-                                    onClick={() => scrollToParticipant(p.id)} 
-                                    className={`relative flex-shrink-0 w-5 overflow-hidden transition-all duration-300 rounded-t-sm ${isPlayer ? 'bg-primary z-20 shadow-md' : 'bg-slate-300 z-10'} ${lastCatchId === p.id ? 'animate-pulse scale-105 shadow-primary/20' : ''}`} 
-                                    style={{ height: `${Math.max(h, 10)}%` }}
-                                />
+                                <div key={p.id} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                                    <button 
+                                        onClick={() => scrollToParticipant(p.id)} 
+                                        className={`relative w-full overflow-hidden transition-all duration-300 ease-out rounded-t-[1px] ${isPlayer ? 'bg-primary z-20 shadow-[0_-2px_6px_rgba(30,58,138,0.2)]' : 'bg-slate-300 z-10'} ${lastCatchId === p.id ? 'brightness-125 scale-y-110 shadow-primary/20' : ''}`} 
+                                        style={{ height: `${Math.max(h, 4)}%` }}
+                                    />
+                                    {isPlayer && <div className="w-1 h-1 bg-primary rounded-full" />}
+                                </div>
                             );
                         })}
+                    </div>
+                    
+                    <div className="flex flex-col items-center gap-1.5 mt-2 px-6 w-full">
+                        <div className="flex justify-center gap-10 w-full">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 bg-primary rounded-full shadow-sm"></div>
+                                <span className="text-[7px] font-bold text-primary">{toSentenceCase('Your standings')}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 bg-slate-300 rounded-full shadow-sm"></div>
+                                <span className="text-[7px] font-bold text-onSurfaceVariant">{toSentenceCase('Opponents')}</span>
+                            </div>
+                        </div>
+                        <p className="text-[8px] text-onSurfaceVariant/80 font-medium text-center px-4 italic mt-1 leading-snug">
+                            Adjust your tactics to improve your catch efficiency. The bars represent total catch weight relative to the leader.
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-grow flex flex-col overflow-hidden relative">
+            <div className="flex-grow flex flex-col overflow-hidden relative border-t border-outline mt-2">
                 <div ref={tableContainerRef} className="flex-grow overflow-auto custom-scrollbar snap-x snap-mandatory scroll-pl-[130px]">
                     <table className="border-separate border-spacing-0 w-max min-w-full table-fixed">
                         <thead>
@@ -368,32 +390,38 @@ export const MatchUIScreen: React.FC<MatchUIScreenProps> = ({ user, playerLoadou
                         <tbody>
                             {TACTICS_FIELDS.map((f) => (
                                 <tr key={f.field} className={ROW_HEIGHT_CLASS}>
-                                    {participants.map((p, idx) => (
-                                        <td 
-                                            key={`${p.id}-${f.field}`} 
-                                            className={`border-b border-r border-outline px-2 text-center snap-start ${idx === 0 ? 'sticky left-0 z-30 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.05)]' : 'bg-white'}`} 
-                                            style={{ width: COL_WIDTH }}
-                                        >
-                                            <div className="relative h-full flex items-center justify-center p-1">
-                                                <label className="absolute -top-1.5 left-1 px-1 text-[6px] font-black text-onSurfaceVariant/50 z-10 leading-none bg-white/90 rounded-sm">{toSentenceCase(f.label)}</label>
-                                                <div className={`w-full h-[28px] border border-outline rounded-small bg-white flex items-center overflow-hidden transition-all ${p.id === user.id ? 'border-primary/40' : ''}`}>
-                                                    {p.id === user.id ? (
-                                                        <select 
-                                                            value={p.loadout[f.field] as string}
-                                                            onChange={(e) => updatePlayerTactic(f.field, e.target.value)}
-                                                            className="w-full h-full bg-transparent text-[9px] px-1 focus:outline-none appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_0.6rem] bg-[right_0.1rem_center] bg-no-repeat pr-4"
-                                                        >
-                                                            {f.options.map(opt => <option key={opt} value={opt}>{getOptionLabel(f.field, opt)}</option>)}
-                                                        </select>
-                                                    ) : (
-                                                        <span className="w-full text-[9px] text-onSurfaceVariant font-medium truncate px-1 text-center">
-                                                            {getOptionLabel(f.field, p.loadout[f.field] as string)}
-                                                        </span>
-                                                    )}
+                                    {participants.map((p, idx) => {
+                                        const isMainPlayer = p.id === user.id;
+                                        // Ensure unique options only in the dropdown by combining current selection with inventory
+                                        const fieldOptions = Array.from(new Set([p.loadout[f.field] as string, ...(isMainPlayer ? f.options : [])])).sort();
+                                        
+                                        return (
+                                            <td 
+                                                key={`${p.id}-${f.field}`} 
+                                                className={`border-b border-r border-outline px-2 text-center snap-start ${idx === 0 ? 'sticky left-0 z-30 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.05)]' : 'bg-white'}`} 
+                                                style={{ width: COL_WIDTH }}
+                                            >
+                                                <div className="relative h-full flex items-center justify-center p-1">
+                                                    <label className="absolute -top-1.5 left-1 px-1 text-[6px] font-black text-onSurfaceVariant/50 z-10 leading-none bg-white/90 rounded-sm">{toSentenceCase(f.label)}</label>
+                                                    <div className={`w-full h-[28px] border border-outline rounded-small bg-white flex items-center overflow-hidden transition-all ${isMainPlayer ? 'border-primary/40' : ''}`}>
+                                                        {isMainPlayer ? (
+                                                            <select 
+                                                                value={p.loadout[f.field] as string}
+                                                                onChange={(e) => updatePlayerTactic(f.field, e.target.value)}
+                                                                className="w-full h-full bg-transparent text-[9px] px-1 focus:outline-none appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_0.6rem] bg-[right_0.1rem_center] bg-no-repeat pr-4"
+                                                            >
+                                                                {fieldOptions.map(opt => <option key={opt} value={opt}>{getOptionLabel(f.field, opt)}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="w-full text-[9px] text-onSurfaceVariant font-medium truncate px-1 text-center">
+                                                                {getOptionLabel(f.field, p.loadout[f.field] as string)}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    ))}
+                                            </td>
+                                        );
+                                    })}
                                 </tr>
                             ))}
                         </tbody>

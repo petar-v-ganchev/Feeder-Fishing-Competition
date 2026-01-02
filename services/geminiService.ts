@@ -4,40 +4,33 @@ import type { Loadout, VenueCondition } from "../types";
 
 export async function getMatchHint(playerLoadout: Loadout, condition: VenueCondition, locale: string = 'en'): Promise<string> {
     try {
-        // ALWAYS initialize GoogleGenAI inside the function call to use the most recent process.env.API_KEY.
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-        const prompt = `You are an expert fishing coach. A player is struggling in a competitive fishing match.
-        
-        Current Venue Condition: ${condition}
-        Player's Current Loadout:
-        - Rod: ${playerLoadout.rod}
-        - Bait: ${playerLoadout.bait}
-        - Groundbait: ${playerLoadout.groundbait}
-        - Hook: ${playerLoadout.hook}
-        - Feeder: ${playerLoadout.feeder}
-        - Feeder Tip: ${playerLoadout.feederTip}
-        - Casting Distance: ${playerLoadout.castingDistance}
-        - Casting Interval: ${playerLoadout.castingInterval}
-
-        Based on the venue condition, provide one single, short, helpful sentence (max 20 words) to help them. 
-        The description MUST be in the following language: ${locale}.
-        The tip should be a direct suggestion for a change. Do not greet the player or add any extra text.
-
-        Example for 'Clear Water': "Try switching to a smaller hook size to avoid spooking the fish."
-        Example for 'Murky Water': "A fishmeal groundbait might draw in more bites in this cloudy water."
-        `;
-        
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: { parts: [{ text: prompt }] },
+            model: 'gemini-3-pro-preview',
+            contents: `Current Venue Condition: ${condition}
+Target Fish: ${playerLoadout.venueFish?.dominant}
+Current Loadout:
+- Rod: ${playerLoadout.rod}
+- Bait: ${playerLoadout.bait}
+- Groundbait: ${playerLoadout.groundbait}
+- Hook: ${playerLoadout.hook}
+- Feeder: ${playerLoadout.feeder}
+- Feeder Tip: ${playerLoadout.feederTip}
+- Distance: ${playerLoadout.castingDistance}
+- Interval: ${playerLoadout.castingInterval}`,
+            config: {
+                systemInstruction: `You are an expert feeder fishing consultant. 
+                Provide a single, short tactical hint (max 15 words) for the player.
+                Respond strictly in the following language: ${locale}.
+                Do not use greetings or pleasantries. Be technical and precise.`,
+            },
         });
 
-        // The .text property directly returns the string output.
-        return response.text?.trim() || "Pay attention to the conditions and try changing your bait.";
-
+        // Use .text property as per guidelines
+        return response.text || "Try changing your bait to match the target species.";
     } catch (error) {
-        console.error("Error fetching match hint from Gemini:", error);
-        return "Pay attention to the conditions and try changing your bait.";
+        console.error("Error fetching match hint:", error);
+        return "Focus on your casting accuracy and keep your bait fresh.";
     }
 }
