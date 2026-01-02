@@ -32,7 +32,7 @@ const SelectInput: React.FC<{label: string, value: string, onChange: (e: React.C
             className="w-full h-[28px] px-2 bg-surface border border-outline rounded-small text-xs focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1rem_1rem] bg-[right_0.25rem_center] bg-no-repeat pr-6"
           >
               {options.length > 0 ? (
-                options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)
+                options.map((opt, idx) => <option key={`${opt.value}-${idx}`} value={opt.value}>{opt.label}</option>)
               ) : (
                 <option value={value}>{value}</option>
               )}
@@ -142,14 +142,26 @@ export const LoadoutScreen: React.FC<LoadoutScreenProps> = ({ onStartMatch, onBa
   };
 
   const getInventoryOptions = (type: GameItem['type'], defaultId: string) => {
-      const owned = user.inventory.filter(i => i.type === type);
-      if (owned.length === 0) return [{ label: t(`item.name.${defaultId}`), value: defaultId }];
-      return owned.map(i => ({ label: t(`item.name.${i.id}`), value: i.id }));
+      const seen = new Set();
+      const ownedUnique = user.inventory.filter(i => {
+          if (i.type !== type || seen.has(i.id)) return false;
+          seen.add(i.id);
+          return true;
+      });
+      
+      if (ownedUnique.length === 0) return [{ label: t(`item.name.${defaultId}`), value: defaultId }];
+      return ownedUnique.map(i => ({ label: t(`item.name.${i.id}`), value: i.id }));
   };
 
   const getTipOptions = () => {
-      const ownedTips = user.inventory.filter(i => i.id.startsWith('acc_qt'));
-      return ownedTips.map(i => {
+      const seen = new Set();
+      const ownedTipsUnique = user.inventory.filter(i => {
+          if (!i.id.startsWith('acc_qt') || seen.has(i.id)) return false;
+          seen.add(i.id);
+          return true;
+      });
+
+      return ownedTipsUnique.map(i => {
           const numeric = i.id.replace('acc_qt', '');
           const tipVal = `${numeric.slice(0, 1)}.${numeric.slice(1)}oz`;
           return { label: t(`opt.tip.${tipVal}`), value: tipVal };

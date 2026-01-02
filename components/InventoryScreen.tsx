@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
@@ -25,6 +26,16 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onBack, user }
     { title: t('shop.category.accessories'), type: 'Accessory' },
   ];
 
+  // We still use uniqueInventory for display, but use indices for keys to be absolutely safe
+  const uniqueInventory = useMemo(() => {
+    const seen = new Set();
+    return user.inventory.filter(item => {
+      const duplicate = seen.has(item.id);
+      seen.add(item.id);
+      return !duplicate;
+    });
+  }, [user.inventory]);
+
   const filteredCategories = useMemo(() => {
     if (selectedCategory === 'All') return CATEGORIES;
     return CATEGORIES.filter(c => c.type === selectedCategory);
@@ -36,9 +47,9 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onBack, user }
   ], [CATEGORIES, t]);
 
   const hasAnyItems = useMemo(() => {
-      if (selectedCategory === 'All') return user.inventory.length > 0;
-      return user.inventory.some(i => i.type === selectedCategory);
-  }, [selectedCategory, user.inventory]);
+      if (selectedCategory === 'All') return uniqueInventory.length > 0;
+      return uniqueInventory.some(i => i.type === selectedCategory);
+  }, [selectedCategory, uniqueInventory]);
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -63,7 +74,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onBack, user }
         
         <div className="space-y-1 flex-grow">
           {filteredCategories.map(category => {
-            const itemsInCategory = user.inventory.filter(item => item.type === category.type);
+            const itemsInCategory = uniqueInventory.filter(item => item.type === category.type);
             if (itemsInCategory.length === 0) return null;
 
             return (
@@ -72,8 +83,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onBack, user }
                   {category.title}
                 </h2>
                 <div className="space-y-1">
-                  {itemsInCategory.map(item => (
-                    <Card key={item.id} className="p-3 bg-slate-50 border-none">
+                  {itemsInCategory.map((item, idx) => (
+                    <Card key={`${item.id}-${idx}`} className="p-3 bg-slate-50 border-none">
                       <h3 className="font-bold text-sm text-primary mb-0.5">{t(`item.name.${item.id}`)}</h3>
                       <p className="text-onSurfaceVariant text-[10px] leading-tight">{t(`item.desc.${item.id}`)}</p>
                     </Card>

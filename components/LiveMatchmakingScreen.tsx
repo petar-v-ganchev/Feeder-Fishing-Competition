@@ -1,7 +1,5 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Screen, type User } from '../types';
-import { Button } from './common/Button';
+import React, { useState, useEffect } from 'react';
+import { type User } from '../types';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
 import { 
@@ -14,6 +12,7 @@ import {
 import { useTranslation } from '../i18n/LanguageContext';
 
 const MAX_SESSION_PLAYERS = 15;
+const MIN_PLAYERS_REQUIRED = 2;
 
 /**
  * Formats a string to Sentence case (e.g., "Hello world").
@@ -56,19 +55,24 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
             setTimeLeft(diff);
 
             if (diff <= 0) {
-                const activeParticipants = participants.slice(0, MAX_SESSION_PLAYERS);
-                const isUserIncluded = activeParticipants.some(p => p.id === user.id);
+                // Determine eligible humans for this specific match window
+                const eligibleParticipants = participants.slice(0, MAX_SESSION_PLAYERS);
+                const humanCount = eligibleParticipants.length;
+                const isUserIncluded = eligibleParticipants.some(p => p.id === user.id);
 
-                if (activeParticipants.length >= 2 && isUserIncluded) {
+                // REQUIREMENT: At least 2 humans must be enrolled to start a live match
+                if (humanCount >= MIN_PLAYERS_REQUIRED && isUserIncluded) {
                     clearInterval(timer);
-                    onMatchFound(activeParticipants);
-                } else if (activeParticipants.length >= 2 && !isUserIncluded && participants.length >= MAX_SESSION_PLAYERS) {
+                    onMatchFound(eligibleParticipants);
+                } else if (humanCount >= MAX_SESSION_PLAYERS && !isUserIncluded) {
+                    // Session is full and user didn't make the cut
                     const nextOne = getNextSessionTimestamp();
                     const target = nextOne <= currentSessionTime ? currentSessionTime + 15 * 60 * 1000 : nextOne;
                     setCurrentSessionTime(target);
                     setStatusMessage(toSentenceCase(t('live.full')));
                     setTimeout(() => setStatusMessage(null), 5000);
                 } else {
+                    // Not enough humans (less than 2) or user not ready - Reschedule
                     const nextOne = getNextSessionTimestamp();
                     const target = nextOne <= currentSessionTime ? currentSessionTime + 15 * 60 * 1000 : nextOne;
                     setCurrentSessionTime(target);
@@ -120,6 +124,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
     const isSessionFull = !hasJoined && participants.length >= MAX_SESSION_PLAYERS;
     const userRank = participants.findIndex(p => p.id === user.id);
     const isWaitlisted = hasJoined && userRank >= MAX_SESSION_PLAYERS;
+    const hasMinPlayers = participants.length >= MIN_PLAYERS_REQUIRED;
 
     return (
         <div className="flex flex-col min-h-screen bg-white">
@@ -127,19 +132,18 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
             
             <div className="px-6 flex flex-col flex-grow pb-6">
                 <Card className="mb-6 text-center border-primary shadow-lg bg-slate-50 relative overflow-hidden">
-                    {(showRescheduleMessage || statusMessage) && (
-                        <div className="absolute inset-0 bg-secondary/90 flex items-center justify-center p-4 z-10 animate-in fade-in zoom-in duration-300">
-                           <p className="text-white text-[10px] font-black leading-tight italic text-center">
-                                {statusMessage || toSentenceCase(t('live.rescheduled'))}
-                           </p>
-                        </div>
-                    )}
                     <p className="text-[10px] font-bold text-onSurfaceVariant mb-1">{toSentenceCase(t('live.next_session'))}</p>
                     <h2 className="text-5xl font-black text-primary mb-2 font-mono tracking-tighter">{formatCountdown(timeLeft)}</h2>
                     <div className="flex flex-col items-center">
-                        <p className="text-[9px] text-primary font-bold opacity-60">
-                            {toSentenceCase(t('live.scheduled'))} {new Date(currentSessionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        {showRescheduleMessage || statusMessage ? (
+                             <p className="text-[9px] text-secondary font-black animate-pulse">
+                                {statusMessage || "Not enough players. Rescheduling session..."}
+                             </p>
+                        ) : (
+                            <p className="text-[9px] text-primary font-bold opacity-60">
+                                {toSentenceCase(t('live.scheduled'))} {new Date(currentSessionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                        )}
                     </div>
                 </Card>
 
@@ -147,8 +151,8 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
                     <div className="flex justify-between items-center border-b border-outline pb-3 mb-4">
                         <h3 className="text-xs font-bold text-primary">{toSentenceCase(t('live.joined_anglers'))}</h3>
                         <div className="flex items-center gap-2">
-                             <span className="text-[8px] font-black text-onSurfaceVariant/50 tracking-widest">{toSentenceCase(t('live.limit', { target: MAX_SESSION_PLAYERS.toString() }))}: {MAX_SESSION_PLAYERS}</span>
-                             <span className={`px-2 py-0.5 rounded-small text-[10px] font-bold ${participants.length >= 2 ? 'bg-green-600' : 'bg-secondary'} text-white shadow-sm`}>
+                             <span className="text-[8px] font-black text-onSurfaceVariant/50">Session limit: {MAX_SESSION_PLAYERS}</span>
+                             <span className={`px-2 py-0.5 rounded-small text-[10px] font-bold ${hasMinPlayers ? 'bg-green-600' : 'bg-secondary'} text-white shadow-sm transition-colors`}>
                                 {participants.length}
                             </span>
                         </div>
@@ -174,7 +178,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
                                         <div className="flex items-center gap-2">
                                             <p className="text-xs font-bold text-primary leading-tight">{toTitleCase(p.displayName)}</p>
                                             {p.id === user.id && (
-                                                <span className="bg-primary/20 text-primary text-[7px] font-black px-1 rounded-sm tracking-tighter">{toSentenceCase('You')}</span>
+                                                <span className="bg-primary/20 text-primary text-[7px] font-black px-1 rounded-sm tracking-tighter">You</span>
                                             )}
                                         </div>
                                         <p className="text-[9px] font-bold text-onSurfaceVariant">{toSentenceCase(p.country)}</p>
@@ -182,7 +186,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
                                     {!isIncluded && (
                                         <span className="text-[8px] font-black text-secondary bg-secondary/10 px-1 rounded-sm">{toSentenceCase(t('live.waitlist'))}</span>
                                     )}
-                                    <div className={`w-1.5 h-1.5 rounded-full ${isIncluded ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${isIncluded ? (hasMinPlayers ? 'bg-green-500 animate-pulse' : 'bg-amber-400') : 'bg-slate-300'}`}></div>
                                 </div>
                             );
                         })}
@@ -201,7 +205,7 @@ export const LiveMatchmakingScreen: React.FC<LiveMatchmakingScreenProps> = ({ us
                         <p className="text-[10px] text-onSurfaceVariant font-medium leading-relaxed italic">
                             {isWaitlisted || isSessionFull 
                                 ? "If any angler leaves, you will move up. Otherwise, you'll be prioritized for the next slot."
-                                : toSentenceCase(t('live.footer'))}
+                                : "The match requires at least 2 humans to start. If the requirement isn't met by zero, the timer will reset."}
                         </p>
                     </div>
                 </div>

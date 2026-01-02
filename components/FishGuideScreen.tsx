@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card } from './common/Card';
 import { Header } from './common/Header';
@@ -8,18 +9,23 @@ interface FishGuideScreenProps {
   onBack: () => void;
 }
 
-const ParameterBadge: React.FC<{ label: string; values: string[] }> = ({ label, values }) => (
-    <div className="bg-gray-900/50 p-2 rounded border border-gray-700/50">
-        <p className="text-[8px] font-bold text-gray-500 tracking-tighter mb-1">{label}</p>
-        <div className="flex flex-wrap gap-1">
-            {values.map(val => (
-                <span key={val} className="text-[9px] text-gray-200 bg-gray-700 px-1 rounded-sm leading-tight">
-                    {val}
-                </span>
-            ))}
+const ParameterBadge: React.FC<{ label: string; values: string[] }> = ({ label, values }) => {
+    // Deduplicate values for safe key usage
+    const uniqueValues = Array.from(new Set(values));
+    
+    return (
+        <div className="bg-gray-900/50 p-2 rounded border border-gray-700/50">
+            <p className="text-[8px] font-bold text-gray-500 tracking-tighter mb-1">{label}</p>
+            <div className="flex flex-wrap gap-1">
+                {uniqueValues.map((val, idx) => (
+                    <span key={`${val}-${idx}`} className="text-[9px] text-gray-200 bg-gray-700 px-1 rounded-sm leading-tight">
+                        {val}
+                    </span>
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const FishGuideScreen: React.FC<FishGuideScreenProps> = ({ onBack }) => {
   const { t } = useTranslation();
@@ -30,11 +36,11 @@ export const FishGuideScreen: React.FC<FishGuideScreenProps> = ({ onBack }) => {
       
       <div className="flex-grow overflow-y-auto custom-scrollbar pr-1">
         <div className="space-y-4 pb-8">
-            {MOCK_FISH_SPECIES.map((fish: FishSpecies) => {
+            {MOCK_FISH_SPECIES.map((fish: FishSpecies, fishIdx) => {
                 const isBig = fish.maxWeight > 2.0;
                 
                 return (
-                    <Card key={`${fish.variant}-${fish.name}`} className="p-4 border-l-4 border-l-blue-500">
+                    <Card key={`${fish.variant}-${fish.name}-${fishIdx}`} className="p-4 border-l-4 border-l-blue-500">
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h2 className="text-xl font-black text-blue-400 flex items-center gap-2">
