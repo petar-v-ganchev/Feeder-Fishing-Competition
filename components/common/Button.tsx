@@ -1,21 +1,29 @@
+
 import React from 'react';
+import { HapticService } from '../../services/hapticService';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'native';
 }
 
-export const Button: React.FC<ButtonProps> = ({ children, className, variant = 'primary', ...props }) => {
-  const baseClasses = 'w-full h-12 flex items-center justify-center text-sm font-bold rounded-medium transition-all active:translate-y-[1px] disabled:opacity-50 disabled:pointer-events-none px-4';
+export const Button: React.FC<ButtonProps> = ({ children, className, variant = 'primary', onClick, ...props }) => {
+  const baseClasses = 'w-full h-12 flex items-center justify-center text-[15px] font-semibold rounded-ios transition-all active:opacity-70 disabled:opacity-40 disabled:pointer-events-none px-4 select-none';
   
   const variantClasses = {
-    primary: 'bg-primary text-white shadow-sm hover:opacity-90',
-    secondary: 'bg-white text-primary border border-outline hover:bg-slate-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-    ghost: 'bg-transparent text-primary hover:bg-slate-100',
+    primary: 'bg-primary text-white shadow-sm',
+    secondary: 'bg-systemGray text-primary',
+    danger: 'bg-red-600 text-white',
+    ghost: 'bg-transparent text-primary',
+    native: 'bg-systemBlue text-white shadow-md'
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    HapticService.light();
+    if (onClick) onClick(e);
   };
 
   return (
-    <button className={`${baseClasses} ${variantClasses[variant]} ${className}`} {...props}>
+    <button className={`${baseClasses} ${variantClasses[variant]} ${className}`} onClick={handleClick} {...props}>
       {children}
     </button>
   );

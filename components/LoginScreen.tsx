@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './common/Button';
 import { Header } from './common/Header';
@@ -45,7 +46,7 @@ export const LoginScreen: React.FC = () => {
     try {
       const cleanEmail = email.trim();
       if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        await createUserWithEmailAndPassword(cleanEmail, password); // Simplified as per context rules but keeping logic
         localStorage.setItem('lastLoginEmail', cleanEmail);
       } else {
         await loginUser({ email: cleanEmail, password, rememberMe });
@@ -77,26 +78,25 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
+  const LanguageSelector = (
+    <select 
+      value={locale} 
+      onChange={(e) => setLocale(e.target.value as LanguageCode)}
+      className="bg-slate-100/50 text-onSurfaceVariant border border-outline text-[10px] font-bold p-1 rounded-small outline-none focus:ring-1 ring-primary/20"
+    >
+      {languages.map(l => (
+        <option key={l.code} value={l.code}>{l.name}</option>
+      ))}
+    </select>
+  );
+
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      {/* Restored the branded app title to the header */}
-      <Header title={t('app.title')} />
+    <div className="flex flex-col min-h-screen bg-white overflow-hidden">
+      <Header title={t('app.title')} rightAction={LanguageSelector} />
       
       <div className="px-6 flex flex-col flex-grow justify-center pb-12">
-        <div className="absolute top-4 right-4 z-10">
-          <select 
-            value={locale} 
-            onChange={(e) => setLocale(e.target.value as LanguageCode)}
-            className="bg-slate-50 text-onSurfaceVariant border border-outline text-[10px] font-bold p-1 rounded-small outline-none"
-          >
-            {languages.map(l => (
-              <option key={l.code} value={l.code}>{l.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-black text-primary mb-1">
+          <h2 className="text-3xl font-black text-primary mb-1">
             {isRegistering ? t('login.btn.register') : t('login.title')}
           </h2>
           <p className="text-sm font-semibold text-onSurfaceVariant">

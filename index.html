@@ -1,81 +1,104 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1e3a8a" />
-    <meta
-      name="description"
-      content="Feeder fishing competition game"
-    />
-    <title>FFC</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FFC" />
+    <meta name="description" content="Native-feel Feeder Fishing Competition" />
+    <title>FFC Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              primary: '#1e3a8a', // Navy
-              secondary: '#dc2626', // Red (Replaced Orange #f97316)
+              primary: '#1e3a8a',
+              secondary: '#dc2626',
               surface: '#ffffff',
               background: '#f1f5f9',
               onSurface: '#0f172a',
               onSurfaceVariant: '#64748b',
               outline: '#e2e8f0',
+              systemGray: '#f2f2f7',
+              systemBlue: '#007aff',
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
             },
             borderRadius: {
-              'small': '4px',
-              'medium': '8px',
-              'large': '16px',
+              'small': '8px',
+              'medium': '12px',
+              'large': '20px',
+              'ios': '10px',
             }
           }
         }
       }
     </script>
     <style>
+        :root {
+            /* Fallback to 24px for devices that don't support env or report 0 for safe area */
+            --safe-area-inset-top: env(safe-area-inset-top, 24px);
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 20px);
+            /* Extra clearance for the notch area itself to avoid split headers */
+            --notch-spacing: max(var(--safe-area-inset-top), 32px);
+        }
         body {
-            background-color: #f1f5f9;
+            background-color: #000;
             color: #0f172a;
-            font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
             justify-content: center;
             min-height: 100vh;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
         #root {
             width: 100%;
             max-width: 480px;
             background-color: #ffffff;
             min-height: 100vh;
-            box-shadow: 0 0 40px rgba(0,0,0,0.05);
             position: relative;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: var(--safe-area-inset-bottom);
+        }
+        .native-header {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background-color: rgba(255, 255, 255, 0.85);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            /* Use notch-spacing to ensure title is always below camera hole */
+            padding-top: var(--notch-spacing);
+        }
+        .safe-top {
+            padding-top: var(--notch-spacing);
         }
         .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
+            width: 3px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
+            background: rgba(0,0,0,0.1);
             border-radius: 10px;
         }
-        @keyframes catch-fade {
-            0% { transform: scale(0.9); opacity: 0; }
-            10% { transform: scale(1); opacity: 1; }
-            80% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(1.05); opacity: 0; }
+        @keyframes ios-reveal {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .animate-catch-event {
-            animation: catch-fade 2s ease-in-out forwards;
+        .animate-reveal {
+            animation: ios-reveal 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
         }
     </style>
   <script type="importmap">
